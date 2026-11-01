@@ -1,0 +1,992 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/zxzx02010201-lang/FTAP111111/10197622dabefc029228ee1aa0370ac39a4c8078/FTAP%20123"))()
+
+local aa = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
+local aa1 = game:GetService("Players")
+local aa2 = game:GetService("ReplicatedStorage")
+local aa3 = game:GetService("RunService")
+local aa82 = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+
+local aa4 = aa1.LocalPlayer
+local aa5 = aa2:WaitForChild("GrabEvents")
+
+local aa6 = false
+local aa7_targets = { "", "" }
+local selectedMode = "滅世踢 👁"
+local infinitePlatformStandToggle = true
+local plankOrientationMode = "3. 原本"
+
+local destroyGucciActive = false
+local antiAntiKickActive = false
+
+local aa10 = aa2:WaitForChild("MenuToys"):WaitForChild("SpawnToyRemoteFunction")
+local destroyToyRemote = aa2:WaitForChild("MenuToys"):WaitForChild("DestroyToy", 5) or aa2:FindFirstChild("DestroyToy", true)
+local aa11 = aa5:WaitForChild("SetNetworkOwner")
+
+local aa12 = {
+    aa13 = false
+}
+local aa14 = {
+    aa15_list = { nil, nil },
+}
+local aa16 = {}
+local aa17 = false
+
+local voidTimeTracker = {}
+local removeGrabLineTimers = {}
+local lastTeleportTimes = {}
+
+local aa72_palettes = {}
+local aa72_rainbowToggle = false
+local CONFIG_FILE = "Orion_DestructionScript_Red_Optimized.json"
+
+local function aa18()
+    local aa19 = {}
+    for _, aa20 in ipairs(aa1:GetPlayers()) do
+        if aa20 ~= aa4 then
+            table.insert(aa19, aa20.DisplayName .. " (@" .. aa20.Name .. ")")
+        end
+    end
+    return aa19
+end
+
+local function aa21(aa22)
+    if not aa22 or aa22 == "" then return nil end
+    for _, aa23 in ipairs(aa1:GetPlayers()) do
+        local aa24 = aa23.DisplayName .. " (@" .. aa23.Name .. ")"
+        if aa24 == aa22 then return aa23 end
+    end
+    return nil
+end
+
+local function safeDestroyPalette(palette)
+    if palette and palette:IsDescendantOf(workspace) then
+        pcall(function()
+            if destroyToyRemote then
+                if destroyToyRemote:IsA("RemoteFunction") then
+                    destroyToyRemote:InvokeServer("PalletLightBrown")
+                elseif destroyToyRemote:IsA("RemoteEvent") then
+                    destroyToyRemote:FireServer("PalletLightBrown")
+                end
+            end
+        end)
+        pcall(function()
+            palette:Destroy()
+        end)
+    end
+end
+
+local function disableCharacterAnimations(character)
+    if not character then return end
+    local animateScript = character:FindFirstChild("Animate")
+    if animateScript and animateScript:IsA("LocalScript") then
+        animateScript.Disabled = true
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+        end)
+
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                track:Stop(0)
+                track:Destroy()
+            end
+        end
+    end
+end
+
+local function enableCharacterAnimations(character)
+    if not character then return end
+    local animateScript = character:FindFirstChild("Animate")
+    if animateScript and animateScript:IsA("LocalScript") then
+        animateScript.Disabled = false
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+        end)
+    end
+end
+
+local function freezeTargetCompletely(targetChar, targetHum, targetHrp)
+    if not targetChar or not targetHum or not targetHrp then return end
+    
+    pcall(function()
+        targetHum.PlatformStand = true
+        targetHum.Sit = false
+        targetHum.WalkSpeed = 0
+        targetHum.JumpPower = 0
+        targetHum.AutoRotate = false
+        
+        local states = {
+            Enum.HumanoidStateType.Running,
+            Enum.HumanoidStateType.RunningNoPhysics,
+            Enum.HumanoidStateType.Jumping,
+            Enum.HumanoidStateType.Freefall,
+            Enum.HumanoidStateType.GettingUp,
+            Enum.HumanoidStateType.Swimming,
+            Enum.HumanoidStateType.Climbing,
+            Enum.HumanoidStateType.Ragdoll,
+            Enum.HumanoidStateType.FallingDown
+        }
+        for _, state in ipairs(states) do
+            targetHum:SetStateEnabled(state, false)
+        end
+    end)
+
+    local animateScript = targetChar:FindFirstChild("Animate")
+    if animateScript and animateScript:IsA("LocalScript") then
+        animateScript.Disabled = true
+    end
+
+    local animator = targetHum:FindFirstChildOfClass("Animator")
+    if animator then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            track:Stop(0)
+            track:AdjustSpeed(0)
+        end
+    end
+
+    for _, part in ipairs(targetChar:GetDescendants()) do
+        if part:IsA("Motor6D") then
+            pcall(function()
+                part.CurrentAngle = 0
+            end)
+        elseif part:IsA("BasePart") then
+            part.CanCollide = false
+            part.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0, 1, 1)
+        end
+    end
+
+    if targetHrp then
+        targetHrp.AssemblyLinearVelocity = Vector3.zero
+        targetHrp.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
+local function forceHeadLookForward(character, rootPart, localChar)
+    if not character or not rootPart then return end
+    local head = character:FindFirstChild("Head")
+    local neck = head and head:FindFirstChild("Neck")
+    
+    if neck then
+        pcall(function()
+            if localChar and localChar:FindFirstChild("HumanoidRootPart") then
+                local myHRP = localChar.HumanoidRootPart
+                head.CFrame = CFrame.lookAt(head.Position, head.Position + myHRP.CFrame.LookVector)
+            end
+        end)
+    end
+end
+
+local function goToTargetAndGrab(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return end
+    local myChar = aa4.Character
+    if not myChar then return end
+    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+    
+    local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not myHRP or not targetHRP then return end
+
+    if targetHum then
+        targetHum.Sit = false
+        targetHum.PlatformStand = true
+    end
+    
+    if plankOrientationMode ~= "3. 原本" then
+        disableCharacterAnimations(targetPlayer.Character)
+    end
+
+    local originalCFrame = myHRP.CFrame
+    myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 2)
+
+    for aa30 = 1, 5 do
+        aa11:FireServer(targetHRP, targetHRP.CFrame)
+        task.wait()
+    end
+
+    myHRP.CFrame = originalCFrame
+end
+
+local function aa31(aa32, aa33, aa34)
+    return aa32:FindFirstChild(aa33) or aa32:WaitForChild(aa33, aa34 or 5)
+end
+
+local function aa35(aa36)
+    if aa36 and aa36:IsA("BasePart") then
+        aa11:FireServer(aa36, aa36.CFrame)
+        task.wait()
+    end
+end
+
+local function aa37(aa38, aa39)
+    return aa38:FindFirstChild(aa39) ~= nil
+end
+
+local function aa40(aa41)
+    local aa42 = aa4.Character or aa4.CharacterAdded:Wait()
+    local aa43 = aa42:WaitForChild("HumanoidRootPart")
+
+    local waitCount = 0
+    while (aa4.InPlot.Value and not aa4.InOwnedPlot.Value) and waitCount < 50 do
+        task.wait(0.1)
+        waitCount = waitCount + 1
+    end
+    waitCount = 0
+    while not aa4.CanSpawnToy.Value and waitCount < 50 do
+        task.wait(0.1)
+        waitCount = waitCount + 1
+    end
+
+    local aa44 = aa43.CFrame * CFrame.new(0, 14, 20)
+    local aa45 = workspace:FindFirstChild(aa4.Name.."SpawnedInToys") or (workspace:FindFirstChild("PlotItems") and workspace.PlotItems:FindFirstChild("Plot1")) or workspace
+
+    local aa46 = nil
+    local aa47 = aa45.ChildAdded:Connect(function(aa48)
+        if aa48.Name == aa41 then
+            aa46 = aa48
+        end
+    end)
+
+    task.spawn(function()
+        pcall(function()
+            aa10:InvokeServer(aa41, aa44, Vector3.zero)
+        end)
+    end)
+
+    local aa49 = tick()
+    repeat task.wait(0.05) until aa46 or (tick() - aa49) > 5
+    aa47:Disconnect()
+    return aa46
+end
+
+local function aa50()
+    if aa17 then return nil end
+    aa17 = true
+
+    local aa51 = aa40("PalletLightBrown")
+    if not aa51 then
+        aa17 = false
+        return nil
+    end
+
+    local aa52 = aa31(aa51, "SoundPart", 3)
+    if not aa52 then
+        safeDestroyPalette(aa51)
+        aa17 = false
+        return nil
+    end
+
+    local retryCount = 0
+    while retryCount < 10 do
+        if not aa12.aa13 then
+            safeDestroyPalette(aa51)
+            aa17 = false
+            return nil
+        end
+        aa35(aa52)
+        task.wait()
+        if aa37(aa52, "PartOwner") then
+            break
+        end
+        retryCount = retryCount + 1
+    end
+
+    if not aa37(aa52, "PartOwner") then
+        safeDestroyPalette(aa51)
+        aa17 = false
+        return nil
+    end
+
+    for _, aa54 in pairs(aa51:GetDescendants()) do
+        if aa54:IsA("BasePart") then
+            aa54.CanCollide = false
+            aa54.Transparency = 0.8
+        end
+    end
+    aa51.Name = "RagdollPalete"
+
+    local aa55 = Instance.new("BodyVelocity")
+    aa55.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    aa55.Velocity = Vector3.new(0, 900, 0)
+    aa55.Parent = aa52
+
+    aa17 = false
+    return aa51
+end
+
+local function hasGroundOrObstacleBelow(hrp, distance)
+    if not hrp then return false end
+    distance = distance or 1000
+    local rayOrigin = hrp.Position
+    local rayDirection = Vector3.new(0, -distance, 0)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    local ignoreList = {}
+    if hrp.Parent then table.insert(ignoreList, hrp.Parent) end
+    if aa4.Character then table.insert(ignoreList, aa4.Character) end
+    raycastParams.FilterDescendantsInstances = ignoreList
+
+    local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+    return result ~= nil
+end
+
+local function cleanupSingleTarget(targetName)
+    if not targetName then return end
+    voidTimeTracker[targetName] = nil
+    removeGrabLineTimers[targetName] = nil
+    lastTeleportTimes[targetName] = nil
+
+    for idx, name in ipairs(aa14.aa15_list) do
+        if name == targetName and aa72_palettes[idx] then
+            if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                safeDestroyPalette(aa72_palettes[idx])
+            end
+            aa72_palettes[idx] = nil
+        end
+    end
+end
+
+local function cleanupTargetPhysics()
+    for idx, palette in pairs(aa72_palettes) do
+        if palette and palette:IsDescendantOf(workspace) then
+            safeDestroyPalette(palette)
+        end
+        aa72_palettes[idx] = nil
+    end
+    aa17 = false
+    voidTimeTracker = {}
+    removeGrabLineTimers = {}
+    lastTeleportTimes = {}
+
+    for idx, targetName in ipairs(aa14.aa15_list) do
+        if targetName then
+            local targetPlayer = aa1:FindFirstChild(targetName)
+            if targetPlayer and targetPlayer.Character then
+                local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local hum = targetPlayer.Character:FindFirstChild("Humanoid")
+                
+                if hum then
+                    hum.PlatformStand = false
+                    hum.Sit = false
+                    hum.WalkSpeed = 16
+                    hum.JumpPower = 50
+                    hum.AutoRotate = true
+                    pcall(function()
+                        hum:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+                        hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                        hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+                    end)
+                end
+                
+                enableCharacterAnimations(targetPlayer.Character)
+                
+                if hrp then
+                    local suctionForce = hrp:FindFirstChild("SuctionBodyVelocity")
+                    if suctionForce then suctionForce:Destroy() end
+
+                    local gyroForce = hrp:FindFirstChild("FaceGyro")
+                    if gyroForce then gyroForce:Destroy() end
+
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end
+            end
+        end
+    end
+end
+
+local function removeGrabLines(character)
+    if not character then return end
+    if aa5:FindFirstChild("DestroyGrabLine") then
+        aa5.DestroyGrabLine:FireServer(character)
+    end
+    if aa5:FindFirstChild("DestroyGrabLineOther") then
+        aa5.DestroyGrabLineOther:FireServer(character)
+    end
+    
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        if desc and (desc:IsA("Beam") or desc.Name:find("GrabLine") or desc.Name:find("Line")) then
+            if (character and desc:IsDescendantOf(character)) or (aa4.Character and desc:IsDescendantOf(aa4.Character)) then
+                desc:Destroy()
+            end
+        end
+    end
+end
+
+local function destroyPlayerGucci(targetPlayer)
+    if not targetPlayer or targetPlayer == aa4 then return false end
+    local folderName = targetPlayer.Name .. "SpawnedInToys"
+    local toysFolder = aa82:FindFirstChild(folderName)
+    if not toysFolder then return false end
+    
+    for _, obj in ipairs(toysFolder:GetChildren()) do
+        if obj.Name == "CreatureBlobman" then
+            local seat = obj:FindFirstChild("VehicleSeat") or obj:FindFirstChildWhichIsA("VehicleSeat", true)
+            if seat then
+                local myChar = aa4.Character
+                if not myChar then return false end
+                local myHum = myChar:FindFirstChild("Humanoid")
+                local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+                if not myHum or not myRoot then return false end
+                
+                local safeSpot = myRoot.CFrame
+                myRoot.CFrame = seat.CFrame
+                myRoot.AssemblyLinearVelocity = Vector3.zero
+                seat:Sit(myHum)
+                task.wait(0.3)
+                
+                if myHum.SeatPart == seat then
+                    myHum.Sit = false
+                    task.wait(0.1)
+                    myRoot.CFrame = safeSpot
+                    task.wait(0.5)
+                    obj:Destroy()
+                    return true
+                else
+                    myRoot.CFrame = safeSpot
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function StartDestroyGucciLoop()
+    while destroyGucciActive do
+        for _, targetName in ipairs(aa14.aa15_list) do
+            if targetName then
+                local player = aa1:FindFirstChild(targetName)
+                if player and player.Character then
+                    destroyPlayerGucci(player)
+                end
+            end
+        end
+        task.wait(2)
+    end
+end
+
+local function RemoveAntiKickFunction()
+    local toyNames = {"NinjaKunai", "SpookyCandle1", "ClockAlarm", "FoodDonut", "FoodPlate", "NinjaShuriken", "AntiKick"}
+    local setOwner = nil
+
+    while antiAntiKickActive do
+        if not setOwner or not setOwner.Parent then
+            local grabEvents = aa2:WaitForChild("GrabEvents", 10)
+            setOwner = grabEvents and grabEvents:WaitForChild("SetNetworkOwner", 10)
+        end
+
+        if not setOwner then
+            task.wait(0.15)
+            continue
+        end
+
+        for _, targetName in ipairs(aa14.aa15_list) do
+            if targetName then
+                local target = aa1:FindFirstChild(targetName)
+                local spawned = target and aa82:FindFirstChild(target.Name .. "SpawnedInToys")
+
+                if spawned then
+                    for _, toyName in ipairs(toyNames) do
+                        local toy = spawned:FindFirstChild(toyName)
+                        if toy then
+                            local part = toy:FindFirstChild("SoundPart")
+                            if part and part:IsA("BasePart") then
+                                pcall(function()
+                                    setOwner:FireServer(part, part.CFrame)
+                                end)
+                                pcall(function()
+                                    local po = part:FindFirstChild("PartOwner")
+                                    if not po then return end
+                                    local isOurs = false
+                                    if po:IsA("ObjectValue") and po.Value == aa4 then
+                                        isOurs = true
+                                    elseif po:IsA("StringValue") and po.Value == aa4.Name then
+                                        isOurs = true
+                                    end
+                                    if isOurs then
+                                        part.CFrame = CFrame.new(0, 1000, 0)
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.05)
+    end
+end
+
+local aa56 = aa:MakeWindow({Name = "滅_世腳本👁", HidePremium = true, SaveConfig = false})
+local aa57 = aa56:MakeTab({Name = "功能主頁😈", Icon = "rbxassetid://4483345998"})
+
+aa57:AddDropdown({
+    Name = "選擇模式（Mode）",
+    Default = "滅世踢 👁",
+    Options = {"滅世踢 👁", "擊殺模式 (推至10000格下)"},
+    Callback = function(val)
+        if val then selectedMode = val end
+        cleanupTargetPhysics()
+    end
+})
+
+aa57:AddToggle({
+    Name = "無限癱軟 (Infinity PlatformStand)",
+    Default = true,
+    Callback = function(state)
+        infinitePlatformStandToggle = state
+    end
+})
+
+aa57:AddDropdown({
+    Name = "木板狀態 (Plank Orientation)",
+    Default = "3. 原本",
+    Options = {"1. 直式", "2. 橫式", "3. 原本"},
+    Callback = function(val)
+        if val then plankOrientationMode = val end
+        for _, targetName in ipairs(aa14.aa15_list) do
+            if targetName then
+                local targetPlayer = aa1:FindFirstChild(targetName)
+                if targetPlayer and targetPlayer.Character then
+                    if plankOrientationMode == "3. 原本" then
+                        enableCharacterAnimations(targetPlayer.Character)
+                    else
+                        disableCharacterAnimations(targetPlayer.Character)
+                    end
+                end
+            end
+        end
+    end
+})
+
+aa57:AddToggle({
+    Name = "☆ 刪除目標超級防抓 (Anti-Grab / Clear Toys)",
+    Default = false,
+    Callback = function(state)
+        destroyGucciActive = state
+        if destroyGucciActive then
+            task.spawn(StartDestroyGucciLoop)
+        end
+    end
+})
+
+aa57:AddToggle({
+    Name = "☆ 刪除目標防踢/食物道具 (Remove Anti-Kick)",
+    Default = false,
+    Callback = function(state)
+        antiAntiKickActive = state
+        if antiAntiKickActive then
+            task.spawn(RemoveAntiKickFunction)
+        end
+    end
+})
+
+local targetDropdowns = {}
+
+for i = 1, 2 do
+    targetDropdowns[i] = aa57:AddDropdown({
+        Name = "Target Player " .. i,
+        Default = "",
+        Options = aa18(),
+        Callback = function(aa59)
+            if not aa59 or aa59 == "" then
+                aa7_targets[i] = ""
+                aa14.aa15_list[i] = nil
+                cleanupTargetPhysics()
+                return
+            end
+
+            if aa7_targets[i] == aa59 then
+                aa7_targets[i] = ""
+                aa14.aa15_list[i] = nil
+                if targetDropdowns[i] then
+                    pcall(function() targetDropdowns[i]:SetValue("") end)
+                end
+                cleanupTargetPhysics()
+                return
+            end
+
+            aa7_targets[i] = aa59
+            local aa60 = aa21(aa59)
+            if aa60 then
+                aa14.aa15_list[i] = aa60.Name
+                aa60.CharacterAdded:Connect(function()
+                    cleanupSingleTarget(aa60.Name)
+                    task.wait(0.5)
+                    if aa6 then
+                        goToTargetAndGrab(aa60)
+                    end
+                end)
+            else
+                aa14.aa15_list[i] = nil
+            end
+        end
+    })
+end
+
+aa57:AddToggle({
+    Name = "開啟功能 (Execute)",
+    Default = false,
+    Callback = function(aa61)
+        aa6 = aa61
+        aa12.aa13 = aa61
+
+        cleanupTargetPhysics()
+
+        if aa6 then
+            aa16["MainLoop"] = aa3.RenderStepped:Connect(function()
+                if not aa6 then return end
+
+                for idx, targetName in ipairs(aa14.aa15_list) do
+                    if not targetName then continue end
+
+                    local targetPlayer = aa1:FindFirstChild(targetName)
+                    if not targetPlayer then continue end
+
+                    local aa63 = aa4.Character
+                    local aa64 = aa63 and aa63:FindFirstChild("HumanoidRootPart")
+                    if not aa64 then continue end
+
+                    local targetChar = targetPlayer.Character
+                    if not targetChar then continue end
+                    
+                    local aa66 = targetChar:FindFirstChild("HumanoidRootPart")
+                    local targetHum = targetChar:FindFirstChild("Humanoid")
+
+                    if not aa66 or not targetHum or targetHum.Health <= 0 then continue end
+
+                    freezeTargetCompletely(targetChar, targetHum, aa66)
+
+                    if plankOrientationMode == "3. 原本" then
+                        enableCharacterAnimations(targetChar)
+                    else
+                        disableCharacterAnimations(targetChar)
+                    end
+                    
+                    forceHeadLookForward(targetChar, aa66, aa63)
+
+                    for _, part in ipairs(targetChar:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+
+                    local aa67 = (aa64.Position - aa66.Position).Magnitude
+                    local currentTime = tick()
+                    local isFallingAway = (aa66.Position.Y < aa64.Position.Y - 35) or (aa67 > 30)
+                    
+                    if isFallingAway then
+                        local lastTp = lastTeleportTimes[targetName] or 0
+                        if (currentTime - lastTp) >= 0.8 then
+                            goToTargetAndGrab(targetPlayer)
+                            lastTeleportTimes[targetName] = currentTime
+                        end
+                    else
+                        targetHum.Sit = false
+                    end
+
+                    aa11:FireServer(aa66, aa66.CFrame)
+
+                    if not removeGrabLineTimers[targetName] or (currentTime - removeGrabLineTimers[targetName] >= 0.1) then
+                        removeGrabLines(aa66)
+                        removeGrabLineTimers[targetName] = currentTime
+                    end
+
+                    if selectedMode == "擊殺模式 (推至10000格下)" then
+                        local gyro = aa66:FindFirstChild("FaceGyro")
+                        if gyro then gyro:Destroy() end
+                        
+                        local isInVoid = aa66.Position.Y < -500
+
+                        if isInVoid then
+                            if not voidTimeTracker[targetName] then
+                                voidTimeTracker[targetName] = tick()
+                            end
+
+                            if (tick() - voidTimeTracker[targetName]) >= 5 then
+                                aa66.AssemblyLinearVelocity = Vector3.zero
+                                aa66.AssemblyAngularVelocity = Vector3.zero
+                                
+                                local lastTp = lastTeleportTimes[targetName] or 0
+                                if (currentTime - lastTp) >= 0.8 then
+                                    goToTargetAndGrab(targetPlayer)
+                                    lastTeleportTimes[targetName] = currentTime
+                                end
+                                removeGrabLines(aa66)
+                                voidTimeTracker[targetName] = nil
+                            end
+                        else
+                            voidTimeTracker[targetName] = nil
+                        end
+
+                        if hasGroundOrObstacleBelow(aa66, 1000) then
+                            local suction = aa66:FindFirstChild("SuctionBodyVelocity")
+                            if not suction then
+                                suction = Instance.new("BodyVelocity")
+                                suction.Name = "SuctionBodyVelocity"
+                                suction.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                suction.Parent = aa66
+                            end
+                            suction.Velocity = Vector3.new(0, -10000, 0)
+                            aa66.AssemblyAngularVelocity = Vector3.new(1000, 1000, 1000)
+                        else
+                            local suction = aa66:FindFirstChild("SuctionBodyVelocity")
+                            if suction then suction:Destroy() end
+                            aa66.AssemblyLinearVelocity = Vector3.zero
+                            aa66.AssemblyAngularVelocity = Vector3.zero
+                        end
+
+                    else
+                        voidTimeTracker[targetName] = nil
+                        
+                        local suction = aa66:FindFirstChild("SuctionBodyVelocity")
+                        if not suction then
+                            suction = Instance.new("BodyVelocity")
+                            suction.Name = "SuctionBodyVelocity"
+                            suction.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                            suction.Parent = aa66
+                        end
+
+                        local offset = Vector3.new(0, 20, 0)
+                        if plankOrientationMode == "1. 直式" then
+                            offset = (idx == 1) and Vector3.new(2, 20, 0) or Vector3.new(-2, 20, 0)
+                        elseif plankOrientationMode == "2. 橫式" then
+                            offset = (idx == 1) and Vector3.new(0, 20, 2) or Vector3.new(0, 20, -2)
+                        end
+
+                        local targetPos = aa64.Position + offset
+                        local direction = (targetPos - aa66.Position)
+                        
+                        suction.Velocity = direction * 10
+
+                        local gyro = aa66:FindFirstChild("FaceGyro")
+                        if not gyro then
+                            gyro = Instance.new("BodyGyro")
+                            gyro.Name = "FaceGyro"
+                            gyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                            gyro.P = 20000
+                            gyro.Parent = aa66
+                        end
+                        gyro.CFrame = CFrame.lookAt(aa66.Position, aa66.Position + aa64.CFrame.LookVector)
+                        aa66.AssemblyAngularVelocity = Vector3.zero
+                    end
+                end
+            end)
+        else
+            if aa16["MainLoop"] then
+                aa16["MainLoop"]:Disconnect()
+                aa16["MainLoop"] = nil
+            end
+            cleanupTargetPhysics()
+        end
+
+        if aa61 then
+            aa16["aa73"] = aa3.RenderStepped:Connect(function()
+                if not aa12.aa13 then return end
+
+                for idx, targetName in ipairs(aa14.aa15_list) do
+                    if not targetName then
+                        if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                            safeDestroyPalette(aa72_palettes[idx])
+                        end
+                        aa72_palettes[idx] = nil
+                        continue
+                    end
+
+                    local targetPlayer = aa1:FindFirstChild(targetName)
+                    if not targetPlayer or not targetPlayer.Character then
+                        if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                            safeDestroyPalette(aa72_palettes[idx])
+                        end
+                        aa72_palettes[idx] = nil
+                        continue
+                    end
+
+                    local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local hum = targetPlayer.Character:FindFirstChild("Humanoid")
+                    if not hrp or not hum or hum.Health <= 0 then
+                        if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                            safeDestroyPalette(aa72_palettes[idx])
+                        end
+                        aa72_palettes[idx] = nil
+                        continue
+                    end
+
+                    if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                        local soundPart = aa72_palettes[idx]:FindFirstChild("SoundPart")
+                        if soundPart and not aa37(soundPart, "PartOwner") then
+                            safeDestroyPalette(aa72_palettes[idx])
+                            aa72_palettes[idx] = nil
+                        end
+                    end
+
+                    if not aa17 and (not aa72_palettes[idx] or not aa72_palettes[idx]:IsDescendantOf(workspace)) then
+                        task.spawn(function()
+                            local newPalette = aa50()
+                            if newPalette then
+                                aa72_palettes[idx] = newPalette
+                            end
+                        end)
+                    end
+
+                    if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                        local soundPart = aa72_palettes[idx]:FindFirstChild("SoundPart")
+                        if soundPart then
+                            if plankOrientationMode == "1. 直式" then
+                                soundPart.CFrame = hrp.CFrame * CFrame.Angles(math.rad(90), 0, 0)
+                            elseif plankOrientationMode == "2. 橫式" then
+                                soundPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(90), 0)
+                            else
+                                soundPart.CFrame = hrp.CFrame
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if aa16["aa73"] then
+                aa16["aa73"]:Disconnect()
+                aa16["aa73"] = nil
+            end
+        end
+    end
+})
+
+aa57:AddToggle({
+    Name = "召喚的木板漸變色",
+    Default = false,
+    Callback = function(state)
+        aa72_rainbowToggle = state
+
+        if aa72_rainbowToggle then
+            task.spawn(function()
+                local hue = 0
+                while aa72_rainbowToggle do
+                    hue = (hue + 0.01) % 1
+                    local rainbowColor = Color3.fromHSV(hue, 1, 1)
+
+                    for _, palette in pairs(aa72_palettes) do
+                        if palette and palette:IsDescendantOf(workspace) then
+                            for _, part in ipairs(palette:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.Color = rainbowColor
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.05)
+                end
+            end)
+        end
+    end
+})
+
+aa57:AddButton({
+    Name = "保存數據 (Save Config)",
+    Callback = function()
+        pcall(function()
+            local configData = {
+                Targets = aa7_targets,
+                Rainbow = aa72_rainbowToggle,
+                Mode = selectedMode,
+                InfiniteStand = infinitePlatformStandToggle,
+                AntiGrab = destroyGucciActive,
+                AntiKick = antiAntiKickActive,
+                PlankOrientation = plankOrientationMode
+            }
+            if writefile then
+                writefile(CONFIG_FILE, HttpService:JSONEncode(configData))
+                aa:MakeNotification({
+                    Name = "保存成功",
+                    Content = "已成功將設定儲存至本地檔案！",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end
+})
+
+local function aa79()
+    local options = aa18()
+    for i = 1, 2 do
+        if targetDropdowns[i] then
+            pcall(function() targetDropdowns[i]:Refresh(options, true) end)
+        end
+    end
+    for i = 1, 2 do
+        if aa14.aa15_list[i] then
+            local stillExists = aa1:FindFirstChild(aa14.aa15_list[i])
+            if not stillExists then
+                aa14.aa15_list[i] = nil
+                aa7_targets[i] = ""
+                if targetDropdowns[i] then
+                    pcall(function() targetDropdowns[i]:SetValue("") end)
+                end
+            end
+        end
+    end
+end
+
+aa1.PlayerAdded:Connect(function(newPlayer)
+    task.wait(0.5)
+    aa79()
+    newPlayer.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        aa79()
+    end)
+end)
+
+for _, p in ipairs(aa1:GetPlayers()) do
+    p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        aa79()
+    end)
+end
+
+aa1.PlayerRemoving:Connect(aa79)
+
+aa:Init()
+
+-- 立即套用血紅主題
+task.spawn(function()
+    pcall(function()
+        for _, gui in ipairs(game:GetService("CoreGui"):GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                for _, obj in ipairs(gui:GetDescendants()) do
+                    if obj:IsA("Frame") or obj:IsA("ScrollingFrame") then
+                        if obj.AbsoluteSize.X > 300 then
+                            obj.BackgroundColor3 = Color3.fromRGB(20, 8, 8)
+                        else
+                            obj.BackgroundColor3 = Color3.fromRGB(35, 12, 12)
+                        end
+                    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                        obj.TextColor3 = Color3.fromRGB(255, 230, 230)
+                    elseif obj:IsA("UIStroke") then
+                        obj.Color = Color3.fromRGB(180, 30, 30)
+                    end
+                end
+            end
+        end
+    end)
+end)
