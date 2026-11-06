@@ -1,0 +1,2291 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/zxzx02010201-lang/FTAP111111/10197622dabefc029228ee1aa0370ac39a4c8078/FTAP%20123"))()
+
+local aa = loadstring(game:HttpGet("https://raw.githubusercontent.com/jadpy/suki/refs/heads/main/orion"))()
+local aa1 = game:GetService("Players")
+local aa2 = game:GetService("ReplicatedStorage")
+local aa3 = game:GetService("RunService")
+local aa82 = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+
+local aa4 = aa1.LocalPlayer
+local aa5 = aa2:WaitForChild("GrabEvents")
+
+local aa6 = false
+local aa7_targets = { "", "" }
+local selectedMode = "滅世踢 👁"
+local infinitePlatformStandToggle = true
+local plankOrientationMode = "3. 原本"
+
+local destroyGucciActive = false
+local antiAntiKickActive = false
+
+local aa10 = aa2:WaitForChild("MenuToys"):WaitForChild("SpawnToyRemoteFunction")
+local destroyToyRemote = aa2:WaitForChild("MenuToys"):WaitForChild("DestroyToy", 5) or aa2:FindFirstChild("DestroyToy", true)
+local aa11 = aa5:WaitForChild("SetNetworkOwner")
+
+local aa12 = {
+    aa13 = false
+}
+local aa14 = {
+    aa15_list = { nil, nil },
+}
+local aa16 = {}
+local aa17 = false
+
+local voidTimeTracker = {}
+local removeGrabLineTimers = {}
+local lastTeleportTimes = {}
+
+local aa72_palettes = {}
+local aa72_rainbowToggle = false
+local CONFIG_FILE = "Orion_DestructionScript_Red_Optimized.json"
+
+local function aa18()
+    local aa19 = {}
+    for _, aa20 in ipairs(aa1:GetPlayers()) do
+        if aa20 ~= aa4 then
+            table.insert(aa19, aa20.DisplayName .. " (@" .. aa20.Name .. ")")
+        end
+    end
+    return aa19
+end
+
+local function aa21(aa22)
+    if not aa22 or aa22 == "" then return nil end
+    for _, aa23 in ipairs(aa1:GetPlayers()) do
+        local aa24 = aa23.DisplayName .. " (@" .. aa23.Name .. ")"
+        if aa24 == aa22 then return aa23 end
+    end
+    return nil
+end
+
+local function safeDestroyPalette(palette)
+    if palette and palette:IsDescendantOf(workspace) then
+        pcall(function()
+            if destroyToyRemote then
+                if destroyToyRemote:IsA("RemoteFunction") then
+                    destroyToyRemote:InvokeServer("PalletLightBrown")
+                elseif destroyToyRemote:IsA("RemoteEvent") then
+                    destroyToyRemote:FireServer("PalletLightBrown")
+                end
+            end
+        end)
+        pcall(function()
+            palette:Destroy()
+        end)
+    end
+end
+
+local function disableCharacterAnimations(character)
+    if not character then return end
+    local animateScript = character:FindFirstChild("Animate")
+    if animateScript and animateScript:IsA("LocalScript") then
+        animateScript.Disabled = true
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+        end)
+
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                track:Stop(0)
+                track:Destroy()
+            end
+        end
+    end
+end
+
+local function enableCharacterAnimations(character)
+    if not character then return end
+    local animateScript = character:FindFirstChild("Animate")
+    if animateScript and animateScript:IsA("LocalScript") then
+        animateScript.Disabled = false
+    end
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        pcall(function()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+        end)
+    end
+end
+
+local function freezeTargetCompletely(targetChar, targetHum, targetHrp)
+    if not targetChar or not targetHum or not targetHrp then return end
+    
+    pcall(function()
+        targetHum.PlatformStand = true
+        targetHum.Sit = false
+        targetHum.WalkSpeed = 0
+        targetHum.JumpPower = 0
+        targetHum.AutoRotate = false
+        
+        local states = {
+            Enum.HumanoidStateType.Running,
+            Enum.HumanoidStateType.RunningNoPhysics,
+            Enum.HumanoidStateType.Jumping,
+            Enum.HumanoidStateType.Freefall,
+            Enum.HumanoidStateType.GettingUp,
+            Enum.HumanoidStateType.Swimming,
+            Enum.HumanoidStateType.Climbing,
+            Enum.HumanoidStateType.Ragdoll,
+            Enum.HumanoidStateType.FallingDown
+        }
+        for _, state in ipairs(states) do
+            targetHum:SetStateEnabled(state, false)
+        end
+    end)
+
+    local animateScript = targetChar:FindFirstChild("Animate")
+    if animateScript and animateScript:IsA("LocalScript") then
+        animateScript.Disabled = true
+    end
+
+    local animator = targetHum:FindFirstChildOfClass("Animator")
+    if animator then
+        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+            track:Stop(0)
+            track:AdjustSpeed(0)
+        end
+    end
+
+    for _, part in ipairs(targetChar:GetDescendants()) do
+        if part:IsA("Motor6D") then
+            pcall(function()
+                part.CurrentAngle = 0
+            end)
+        elseif part:IsA("BasePart") then
+            part.CanCollide = false
+            part.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0, 1, 1)
+        end
+    end
+
+    if targetHrp then
+        targetHrp.AssemblyLinearVelocity = Vector3.zero
+        targetHrp.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
+local function forceHeadLookForward(character, rootPart, localChar)
+    if not character or not rootPart then return end
+    local head = character:FindFirstChild("Head")
+    local neck = head and head:FindFirstChild("Neck")
+    
+    if neck then
+        pcall(function()
+            if localChar and localChar:FindFirstChild("HumanoidRootPart") then
+                local myHRP = localChar.HumanoidRootPart
+                head.CFrame = CFrame.lookAt(head.Position, head.Position + myHRP.CFrame.LookVector)
+            end
+        end)
+    end
+end
+
+local function goToTargetAndGrab(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return end
+    local myChar = aa4.Character
+    if not myChar then return end
+    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+    
+    local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not myHRP or not targetHRP then return end
+
+    if targetHum then
+        targetHum.Sit = false
+        targetHum.PlatformStand = true
+    end
+    
+    if plankOrientationMode ~= "3. 原本" then
+        disableCharacterAnimations(targetPlayer.Character)
+    end
+
+    local originalCFrame = myHRP.CFrame
+    myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 2)
+
+    for aa30 = 1, 5 do
+        aa11:FireServer(targetHRP, targetHRP.CFrame)
+        task.wait()
+    end
+
+    myHRP.CFrame = originalCFrame
+end
+
+local function aa31(aa32, aa33, aa34)
+    return aa32:FindFirstChild(aa33) or aa32:WaitForChild(aa33, aa34 or 5)
+end
+
+local function aa35(aa36)
+    if aa36 and aa36:IsA("BasePart") then
+        aa11:FireServer(aa36, aa36.CFrame)
+        task.wait()
+    end
+end
+
+local function aa37(aa38, aa39)
+    return aa38:FindFirstChild(aa39) ~= nil
+end
+
+local function aa40(aa41)
+    local aa42 = aa4.Character or aa4.CharacterAdded:Wait()
+    local aa43 = aa42:WaitForChild("HumanoidRootPart")
+
+    local waitCount = 0
+    while (aa4.InPlot.Value and not aa4.InOwnedPlot.Value) and waitCount < 50 do
+        task.wait(0.1)
+        waitCount = waitCount + 1
+    end
+    waitCount = 0
+    while not aa4.CanSpawnToy.Value and waitCount < 50 do
+        task.wait(0.1)
+        waitCount = waitCount + 1
+    end
+
+    local aa44 = aa43.CFrame * CFrame.new(0, 14, 20)
+    local aa45 = workspace:FindFirstChild(aa4.Name.."SpawnedInToys") or (workspace:FindFirstChild("PlotItems") and workspace.PlotItems:FindFirstChild("Plot1")) or workspace
+
+    local aa46 = nil
+    local aa47 = aa45.ChildAdded:Connect(function(aa48)
+        if aa48.Name == aa41 then
+            aa46 = aa48
+        end
+    end)
+
+    task.spawn(function()
+        pcall(function()
+            aa10:InvokeServer(aa41, aa44, Vector3.zero)
+        end)
+    end)
+
+    local aa49 = tick()
+    repeat task.wait(0.05) until aa46 or (tick() - aa49) > 5
+    aa47:Disconnect()
+    return aa46
+end
+
+local function aa50()
+    if aa17 then return nil end
+    aa17 = true
+
+    local aa51 = aa40("PalletLightBrown")
+    if not aa51 then
+        aa17 = false
+        return nil
+    end
+
+    local aa52 = aa31(aa51, "SoundPart", 3)
+    if not aa52 then
+        safeDestroyPalette(aa51)
+        aa17 = false
+        return nil
+    end
+
+    local retryCount = 0
+    while retryCount < 10 do
+        if not aa12.aa13 then
+            safeDestroyPalette(aa51)
+            aa17 = false
+            return nil
+        end
+        aa35(aa52)
+        task.wait()
+        if aa37(aa52, "PartOwner") then
+            break
+        end
+        retryCount = retryCount + 1
+    end
+
+    if not aa37(aa52, "PartOwner") then
+        safeDestroyPalette(aa51)
+        aa17 = false
+        return nil
+    end
+
+    for _, aa54 in pairs(aa51:GetDescendants()) do
+        if aa54:IsA("BasePart") then
+            aa54.CanCollide = false
+            aa54.Transparency = 0.8
+        end
+    end
+    aa51.Name = "RagdollPalete"
+
+    local aa55 = Instance.new("BodyVelocity")
+    aa55.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    aa55.Velocity = Vector3.new(0, 900, 0)
+    aa55.Parent = aa52
+
+    aa17 = false
+    return aa51
+end
+
+local function hasGroundOrObstacleBelow(hrp, distance)
+    if not hrp then return false end
+    distance = distance or 1000
+    local rayOrigin = hrp.Position
+    local rayDirection = Vector3.new(0, -distance, 0)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    
+    local ignoreList = {}
+    if hrp.Parent then table.insert(ignoreList, hrp.Parent) end
+    if aa4.Character then table.insert(ignoreList, aa4.Character) end
+    raycastParams.FilterDescendantsInstances = ignoreList
+
+    local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+    return result ~= nil
+end
+
+local function cleanupSingleTarget(targetName)
+    if not targetName then return end
+    voidTimeTracker[targetName] = nil
+    removeGrabLineTimers[targetName] = nil
+    lastTeleportTimes[targetName] = nil
+
+    for idx, name in ipairs(aa14.aa15_list) do
+        if name == targetName and aa72_palettes[idx] then
+            if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                safeDestroyPalette(aa72_palettes[idx])
+            end
+            aa72_palettes[idx] = nil
+        end
+    end
+end
+
+local function cleanupTargetPhysics()
+    for idx, palette in pairs(aa72_palettes) do
+        if palette and palette:IsDescendantOf(workspace) then
+            safeDestroyPalette(palette)
+        end
+        aa72_palettes[idx] = nil
+    end
+    aa17 = false
+    voidTimeTracker = {}
+    removeGrabLineTimers = {}
+    lastTeleportTimes = {}
+
+    for idx, targetName in ipairs(aa14.aa15_list) do
+        if targetName then
+            local targetPlayer = aa1:FindFirstChild(targetName)
+            if targetPlayer and targetPlayer.Character then
+                local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local hum = targetPlayer.Character:FindFirstChild("Humanoid")
+                
+                if hum then
+                    hum.PlatformStand = false
+                    hum.Sit = false
+                    hum.WalkSpeed = 16
+                    hum.JumpPower = 50
+                    hum.AutoRotate = true
+                    pcall(function()
+                        hum:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+                        hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+                        hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+                    end)
+                end
+                
+                enableCharacterAnimations(targetPlayer.Character)
+                
+                if hrp then
+                    local suctionForce = hrp:FindFirstChild("SuctionBodyVelocity")
+                    if suctionForce then suctionForce:Destroy() end
+
+                    local gyroForce = hrp:FindFirstChild("FaceGyro")
+                    if gyroForce then gyroForce:Destroy() end
+
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end
+            end
+        end
+    end
+end
+
+local function removeGrabLines(character)
+    if not character then return end
+    if aa5:FindFirstChild("DestroyGrabLine") then
+        aa5.DestroyGrabLine:FireServer(character)
+    end
+    if aa5:FindFirstChild("DestroyGrabLineOther") then
+        aa5.DestroyGrabLineOther:FireServer(character)
+    end
+    
+    for _, desc in ipairs(workspace:GetDescendants()) do
+        if desc and (desc:IsA("Beam") or desc.Name:find("GrabLine") or desc.Name:find("Line")) then
+            if (character and desc:IsDescendantOf(character)) or (aa4.Character and desc:IsDescendantOf(aa4.Character)) then
+                desc:Destroy()
+            end
+        end
+    end
+end
+
+local function destroyPlayerGucci(targetPlayer)
+    if not targetPlayer or targetPlayer == aa4 then return false end
+    local folderName = targetPlayer.Name .. "SpawnedInToys"
+    local toysFolder = aa82:FindFirstChild(folderName)
+    if not toysFolder then return false end
+    
+    for _, obj in ipairs(toysFolder:GetChildren()) do
+        if obj.Name == "CreatureBlobman" then
+            local seat = obj:FindFirstChild("VehicleSeat") or obj:FindFirstChildWhichIsA("VehicleSeat", true)
+            if seat then
+                local myChar = aa4.Character
+                if not myChar then return false end
+                local myHum = myChar:FindFirstChild("Humanoid")
+                local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+                if not myHum or not myRoot then return false end
+                
+                local safeSpot = myRoot.CFrame
+                myRoot.CFrame = seat.CFrame
+                myRoot.AssemblyLinearVelocity = Vector3.zero
+                seat:Sit(myHum)
+                task.wait(0.3)
+                
+                if myHum.SeatPart == seat then
+                    myHum.Sit = false
+                    task.wait(0.1)
+                    myRoot.CFrame = safeSpot
+                    task.wait(0.5)
+                    obj:Destroy()
+                    return true
+                else
+                    myRoot.CFrame = safeSpot
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function StartDestroyGucciLoop()
+    while destroyGucciActive do
+        for _, targetName in ipairs(aa14.aa15_list) do
+            if targetName then
+                local player = aa1:FindFirstChild(targetName)
+                if player and player.Character then
+                    destroyPlayerGucci(player)
+                end
+            end
+        end
+        task.wait(2)
+    end
+end
+
+local function RemoveAntiKickFunction()
+    local toyNames = {"NinjaKunai", "SpookyCandle1", "ClockAlarm", "FoodDonut", "FoodPlate", "NinjaShuriken", "AntiKick"}
+    local setOwner = nil
+
+    while antiAntiKickActive do
+        if not setOwner or not setOwner.Parent then
+            local grabEvents = aa2:WaitForChild("GrabEvents", 10)
+            setOwner = grabEvents and grabEvents:WaitForChild("SetNetworkOwner", 10)
+        end
+
+        if not setOwner then
+            task.wait(0.15)
+            continue
+        end
+
+        for _, targetName in ipairs(aa14.aa15_list) do
+            if targetName then
+                local target = aa1:FindFirstChild(targetName)
+                local spawned = target and aa82:FindFirstChild(target.Name .. "SpawnedInToys")
+
+                if spawned then
+                    for _, toyName in ipairs(toyNames) do
+                        local toy = spawned:FindFirstChild(toyName)
+                        if toy then
+                            local part = toy:FindFirstChild("SoundPart")
+                            if part and part:IsA("BasePart") then
+                                pcall(function()
+                                    setOwner:FireServer(part, part.CFrame)
+                                end)
+                                pcall(function()
+                                    local po = part:FindFirstChild("PartOwner")
+                                    if not po then return end
+                                    local isOurs = false
+                                    if po:IsA("ObjectValue") and po.Value == aa4 then
+                                        isOurs = true
+                                    elseif po:IsA("StringValue") and po.Value == aa4.Name then
+                                        isOurs = true
+                                    end
+                                    if isOurs then
+                                        part.CFrame = CFrame.new(0, 1000, 0)
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.05)
+    end
+end
+
+local aa56 = aa:MakeWindow({Name = "滅_世腳本👁", HidePremium = true, SaveConfig = false})
+local aa57 = aa56:MakeTab({Name = "功能主頁😈", Icon = "rbxassetid://4483345998"})
+
+aa57:AddDropdown({
+    Name = "選擇模式（Mode）",
+    Default = "滅世踢 👁",
+    Options = {"滅世踢 👁", "擊殺模式 (推至10000格下)"},
+    Callback = function(val)
+        if val then selectedMode = val end
+        cleanupTargetPhysics()
+    end
+})
+
+aa57:AddToggle({
+    Name = "無限癱軟 (Infinity PlatformStand)",
+    Default = true,
+    Callback = function(state)
+        infinitePlatformStandToggle = state
+    end
+})
+
+aa57:AddDropdown({
+    Name = "木板狀態 (Plank Orientation)",
+    Default = "3. 原本",
+    Options = {"1. 直式", "2. 橫式", "3. 原本"},
+    Callback = function(val)
+        if val then plankOrientationMode = val end
+        for _, targetName in ipairs(aa14.aa15_list) do
+            if targetName then
+                local targetPlayer = aa1:FindFirstChild(targetName)
+                if targetPlayer and targetPlayer.Character then
+                    if plankOrientationMode == "3. 原本" then
+                        enableCharacterAnimations(targetPlayer.Character)
+                    else
+                        disableCharacterAnimations(targetPlayer.Character)
+                    end
+                end
+            end
+        end
+    end
+})
+
+aa57:AddToggle({
+    Name = "☆ 刪除目標超級防抓 (Anti-Grab / Clear Toys)",
+    Default = false,
+    Callback = function(state)
+        destroyGucciActive = state
+        if destroyGucciActive then
+            task.spawn(StartDestroyGucciLoop)
+        end
+    end
+})
+
+aa57:AddToggle({
+    Name = "☆ 刪除目標防踢/食物道具 (Remove Anti-Kick)",
+    Default = false,
+    Callback = function(state)
+        antiAntiKickActive = state
+        if antiAntiKickActive then
+            task.spawn(RemoveAntiKickFunction)
+        end
+    end
+})
+
+local targetDropdowns = {}
+
+for i = 1, 2 do
+    targetDropdowns[i] = aa57:AddDropdown({
+        Name = "Target Player " .. i,
+        Default = "",
+        Options = aa18(),
+        Callback = function(aa59)
+            if not aa59 or aa59 == "" then
+                aa7_targets[i] = ""
+                aa14.aa15_list[i] = nil
+                cleanupTargetPhysics()
+                return
+            end
+
+            if aa7_targets[i] == aa59 then
+                aa7_targets[i] = ""
+                aa14.aa15_list[i] = nil
+                if targetDropdowns[i] then
+                    pcall(function() targetDropdowns[i]:SetValue("") end)
+                end
+                cleanupTargetPhysics()
+                return
+            end
+
+            aa7_targets[i] = aa59
+            local aa60 = aa21(aa59)
+            if aa60 then
+                aa14.aa15_list[i] = aa60.Name
+                aa60.CharacterAdded:Connect(function()
+                    cleanupSingleTarget(aa60.Name)
+                    task.wait(0.5)
+                    if aa6 then
+                        goToTargetAndGrab(aa60)
+                    end
+                end)
+            else
+                aa14.aa15_list[i] = nil
+            end
+        end
+    })
+end
+
+aa57:AddToggle({
+    Name = "開啟功能 (Execute)",
+    Default = false,
+    Callback = function(aa61)
+        aa6 = aa61
+        aa12.aa13 = aa61
+
+        cleanupTargetPhysics()
+
+        if aa6 then
+            aa16["MainLoop"] = aa3.RenderStepped:Connect(function()
+                if not aa6 then return end
+
+                for idx, targetName in ipairs(aa14.aa15_list) do
+                    if not targetName then continue end
+
+                    local targetPlayer = aa1:FindFirstChild(targetName)
+                    if not targetPlayer then continue end
+
+                    local aa63 = aa4.Character
+                    local aa64 = aa63 and aa63:FindFirstChild("HumanoidRootPart")
+                    if not aa64 then continue end
+
+                    local targetChar = targetPlayer.Character
+                    if not targetChar then continue end
+                    
+                    local aa66 = targetChar:FindFirstChild("HumanoidRootPart")
+                    local targetHum = targetChar:FindFirstChild("Humanoid")
+
+                    if not aa66 or not targetHum or targetHum.Health <= 0 then continue end
+
+                    freezeTargetCompletely(targetChar, targetHum, aa66)
+
+                    if plankOrientationMode == "3. 原本" then
+                        enableCharacterAnimations(targetChar)
+                    else
+                        disableCharacterAnimations(targetChar)
+                    end
+                    
+                    forceHeadLookForward(targetChar, aa66, aa63)
+
+                    for _, part in ipairs(targetChar:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+
+                    local aa67 = (aa64.Position - aa66.Position).Magnitude
+                    local currentTime = tick()
+                    local isFallingAway = (aa66.Position.Y < aa64.Position.Y - 35) or (aa67 > 30)
+                    
+                    if isFallingAway then
+                        local lastTp = lastTeleportTimes[targetName] or 0
+                        if (currentTime - lastTp) >= 0.8 then
+                            goToTargetAndGrab(targetPlayer)
+                            lastTeleportTimes[targetName] = currentTime
+                        end
+                    else
+                        targetHum.Sit = false
+                    end
+
+                    aa11:FireServer(aa66, aa66.CFrame)
+
+                    if not removeGrabLineTimers[targetName] or (currentTime - removeGrabLineTimers[targetName] >= 0.1) then
+                        removeGrabLines(aa66)
+                        removeGrabLineTimers[targetName] = currentTime
+                    end
+
+                    if selectedMode == "擊殺模式 (推至10000格下)" then
+                        local gyro = aa66:FindFirstChild("FaceGyro")
+                        if gyro then gyro:Destroy() end
+                        
+                        local isInVoid = aa66.Position.Y < -500
+
+                        if isInVoid then
+                            if not voidTimeTracker[targetName] then
+                                voidTimeTracker[targetName] = tick()
+                            end
+
+                            if (tick() - voidTimeTracker[targetName]) >= 5 then
+                                aa66.AssemblyLinearVelocity = Vector3.zero
+                                aa66.AssemblyAngularVelocity = Vector3.zero
+                                
+                                local lastTp = lastTeleportTimes[targetName] or 0
+                                if (currentTime - lastTp) >= 0.8 then
+                                    goToTargetAndGrab(targetPlayer)
+                                    lastTeleportTimes[targetName] = currentTime
+                                end
+                                removeGrabLines(aa66)
+                                voidTimeTracker[targetName] = nil
+                            end
+                        else
+                            voidTimeTracker[targetName] = nil
+                        end
+
+                        if hasGroundOrObstacleBelow(aa66, 1000) then
+                            local suction = aa66:FindFirstChild("SuctionBodyVelocity")
+                            if not suction then
+                                suction = Instance.new("BodyVelocity")
+                                suction.Name = "SuctionBodyVelocity"
+                                suction.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                suction.Parent = aa66
+                            end
+                            suction.Velocity = Vector3.new(0, -10000, 0)
+                            aa66.AssemblyAngularVelocity = Vector3.new(1000, 1000, 1000)
+                        else
+                            local suction = aa66:FindFirstChild("SuctionBodyVelocity")
+                            if suction then suction:Destroy() end
+                            aa66.AssemblyLinearVelocity = Vector3.zero
+                            aa66.AssemblyAngularVelocity = Vector3.zero
+                        end
+
+                    else
+                        voidTimeTracker[targetName] = nil
+                        
+                        local suction = aa66:FindFirstChild("SuctionBodyVelocity")
+                        if not suction then
+                            suction = Instance.new("BodyVelocity")
+                            suction.Name = "SuctionBodyVelocity"
+                            suction.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                            suction.Parent = aa66
+                        end
+
+                        local offset = Vector3.new(0, 20, 0)
+                        if plankOrientationMode == "1. 直式" then
+                            offset = (idx == 1) and Vector3.new(2, 20, 0) or Vector3.new(-2, 20, 0)
+                        elseif plankOrientationMode == "2. 橫式" then
+                            offset = (idx == 1) and Vector3.new(0, 20, 2) or Vector3.new(0, 20, -2)
+                        end
+
+                        local targetPos = aa64.Position + offset
+                        local direction = (targetPos - aa66.Position)
+                        
+                        suction.Velocity = direction * 10
+
+                        local gyro = aa66:FindFirstChild("FaceGyro")
+                        if not gyro then
+                            gyro = Instance.new("BodyGyro")
+                            gyro.Name = "FaceGyro"
+                            gyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                            gyro.P = 20000
+                            gyro.Parent = aa66
+                        end
+                        gyro.CFrame = CFrame.lookAt(aa66.Position, aa66.Position + aa64.CFrame.LookVector)
+                        aa66.AssemblyAngularVelocity = Vector3.zero
+                    end
+                end
+            end)
+        else
+            if aa16["MainLoop"] then
+                aa16["MainLoop"]:Disconnect()
+                aa16["MainLoop"] = nil
+            end
+            cleanupTargetPhysics()
+        end
+
+        if aa61 then
+            aa16["aa73"] = aa3.RenderStepped:Connect(function()
+                if not aa12.aa13 then return end
+
+                for idx, targetName in ipairs(aa14.aa15_list) do
+                    if not targetName then
+                        if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                            safeDestroyPalette(aa72_palettes[idx])
+                        end
+                        aa72_palettes[idx] = nil
+                        continue
+                    end
+
+                    local targetPlayer = aa1:FindFirstChild(targetName)
+                    if not targetPlayer or not targetPlayer.Character then
+                        if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                            safeDestroyPalette(aa72_palettes[idx])
+                        end
+                        aa72_palettes[idx] = nil
+                        continue
+                    end
+
+                    local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local hum = targetPlayer.Character:FindFirstChild("Humanoid")
+                    if not hrp or not hum or hum.Health <= 0 then
+                        if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                            safeDestroyPalette(aa72_palettes[idx])
+                        end
+                        aa72_palettes[idx] = nil
+                        continue
+                    end
+
+                    if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                        local soundPart = aa72_palettes[idx]:FindFirstChild("SoundPart")
+                        if soundPart and not aa37(soundPart, "PartOwner") then
+                            safeDestroyPalette(aa72_palettes[idx])
+                            aa72_palettes[idx] = nil
+                        end
+                    end
+
+                    if not aa17 and (not aa72_palettes[idx] or not aa72_palettes[idx]:IsDescendantOf(workspace)) then
+                        task.spawn(function()
+                            local newPalette = aa50()
+                            if newPalette then
+                                aa72_palettes[idx] = newPalette
+                            end
+                        end)
+                    end
+
+                    if aa72_palettes[idx] and aa72_palettes[idx]:IsDescendantOf(workspace) then
+                        local soundPart = aa72_palettes[idx]:FindFirstChild("SoundPart")
+                        if soundPart then
+                            if plankOrientationMode == "1. 直式" then
+                                soundPart.CFrame = hrp.CFrame * CFrame.Angles(math.rad(90), 0, 0)
+                            elseif plankOrientationMode == "2. 橫式" then
+                                soundPart.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(90), 0)
+                            else
+                                soundPart.CFrame = hrp.CFrame
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if aa16["aa73"] then
+                aa16["aa73"]:Disconnect()
+                aa16["aa73"] = nil
+            end
+        end
+    end
+})
+
+aa57:AddToggle({
+    Name = "召喚的木板漸變色",
+    Default = false,
+    Callback = function(state)
+        aa72_rainbowToggle = state
+
+        if aa72_rainbowToggle then
+            task.spawn(function()
+                local hue = 0
+                while aa72_rainbowToggle do
+                    hue = (hue + 0.01) % 1
+                    local rainbowColor = Color3.fromHSV(hue, 1, 1)
+
+                    for _, palette in pairs(aa72_palettes) do
+                        if palette and palette:IsDescendantOf(workspace) then
+                            for _, part in ipairs(palette:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.Color = rainbowColor
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.05)
+                end
+            end)
+        end
+    end
+})
+
+aa57:AddButton({
+    Name = "保存數據 (Save Config)",
+    Callback = function()
+        pcall(function()
+            local configData = {
+                Targets = aa7_targets,
+                Rainbow = aa72_rainbowToggle,
+                Mode = selectedMode,
+                InfiniteStand = infinitePlatformStandToggle,
+                AntiGrab = destroyGucciActive,
+                AntiKick = antiAntiKickActive,
+                PlankOrientation = plankOrientationMode
+            }
+            if writefile then
+                writefile(CONFIG_FILE, HttpService:JSONEncode(configData))
+                aa:MakeNotification({
+                    Name = "保存成功",
+                    Content = "已成功將設定儲存至本地檔案！",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end
+})
+
+local function aa79()
+    local options = aa18()
+    for i = 1, 2 do
+        if targetDropdowns[i] then
+            pcall(function() targetDropdowns[i]:Refresh(options, true) end)
+        end
+    end
+    for i = 1, 2 do
+        if aa14.aa15_list[i] then
+            local stillExists = aa1:FindFirstChild(aa14.aa15_list[i])
+            if not stillExists then
+                aa14.aa15_list[i] = nil
+                aa7_targets[i] = ""
+                if targetDropdowns[i] then
+                    pcall(function() targetDropdowns[i]:SetValue("") end)
+                end
+            end
+        end
+    end
+end
+
+aa1.PlayerAdded:Connect(function(newPlayer)
+    task.wait(0.5)
+    aa79()
+    newPlayer.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        aa79()
+    end)
+end)
+
+for _, p in ipairs(aa1:GetPlayers()) do
+    p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        aa79()
+    end)
+end
+
+aa1.PlayerRemoving:Connect(aa79)
+
+aa:Init()
+
+-- 立即套用血紅主題
+task.spawn(function()
+    pcall(function()
+        for _, gui in ipairs(game:GetService("CoreGui"):GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                for _, obj in ipairs(gui:GetDescendants()) do
+                    if obj:IsA("Frame") or obj:IsA("ScrollingFrame") then
+                        if obj.AbsoluteSize.X > 300 then
+                            obj.BackgroundColor3 = Color3.fromRGB(20, 8, 8)
+                        else
+                            obj.BackgroundColor3 = Color3.fromRGB(35, 12, 12)
+                        end
+                    elseif obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                        obj.TextColor3 = Color3.fromRGB(255, 230, 230)
+                    elseif obj:IsA("UIStroke") then
+                        obj.Color = Color3.fromRGB(180, 30, 30)
+                    end
+                end
+            end
+        end
+    end)
+end)
+-- =========== 巨人踢 v2.2.1 (線卡頓與包裹卡頓獨立分離版) ===========
+-- ===========================================================================================================
+
+task.spawn(function()
+    task.wait(1.0)
+
+    -- 0. 環境服務
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Workspace = game:GetService("Workspace")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local LocalPlayer = Players.LocalPlayer
+
+    -- 嘗試自動對接主視窗
+    local gk_MainWindow = nil
+    pcall(function()
+        gk_MainWindow = aa56 or Window or UI or Rayfield or OrionLib
+        if not gk_MainWindow then
+            for _, v in pairs(getfenv()) do
+                if type(v) == "table" and (rawget(v, "MakeTab") or rawget(v, "CreateTab")) then
+                    gk_MainWindow = v
+                    break
+                end
+            end
+        end
+    end)
+
+    if not gk_MainWindow then
+        warn("[巨人踢模組] ❌ 尚未偵測到主視窗，請確認是否已載入主腳本！")
+        return
+    end
+
+    -- =========================================================================================
+    -- 1. 巨人踢底層核心工具與共用程序打包 (GKLib 封包)
+    -- =========================================================================================
+    local GKLib = {}
+
+    function GKLib.getChar() return LocalPlayer.Character end
+    function GKLib.getRoot()
+        local c = GKLib.getChar()
+        return c and (c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("Torso"))
+    end
+    function GKLib.getHum()
+        local c = GKLib.getChar()
+        return c and c:FindFirstChildOfClass("Humanoid")
+    end
+    function GKLib.getInv()
+        return Workspace:FindFirstChild(LocalPlayer.Name .. "SpawnedInToys")
+    end
+
+    function GKLib.SetNetworkOwner(part)
+        if not part or not part.Parent then return end
+        local ge = ReplicatedStorage:FindFirstChild("GrabEvents")
+        local root = GKLib.getRoot()
+        if ge and ge:FindFirstChild("SetNetworkOwner") and root then
+            pcall(function() ge.SetNetworkOwner:FireServer(part, root.CFrame) end)
+        end
+    end
+
+    function GKLib.IsTargetValid(target)
+        if not target or not target.Parent or not target:IsDescendantOf(Players) then return false end
+        local char = target.Character
+        if not char or not char.Parent then return false end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChild("Humanoid")
+        return root and hum and hum.Health > 0
+    end
+
+    function GKLib.ApplyCFrame(part, cf)
+        if not part or not part.Parent then return end
+        part.CFrame = cf
+        part.Velocity = Vector3.zero
+        part.RotVelocity = Vector3.zero
+        if part:IsA("BasePart") then
+            part.AssemblyLinearVelocity = Vector3.zero
+            part.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+
+    function GKLib.KeepUpright(part, targetCF)
+        if not part or not part.Parent then return end
+        local _, yAngle, _ = targetCF:ToOrientation()
+        GKLib.ApplyCFrame(part, CFrame.new(targetCF.Position) * CFrame.Angles(0, yAngle, 0))
+    end
+
+    function GKLib.getToy(toyName)
+        local inv = GKLib.getInv()
+        if inv and inv:FindFirstChild(toyName) then return inv[toyName] end
+        local plotItems = Workspace:FindFirstChild("PlotItems")
+        if plotItems then
+            for _, p in pairs(plotItems:GetChildren()) do
+                local m = p:FindFirstChild(toyName)
+                if m and m:FindFirstChild("PlayerValue") and m.PlayerValue.Value == LocalPlayer.Name then
+                    return m
+                end
+            end
+        end
+        return nil
+    end
+
+    function GKLib.spawnToy(toyName)
+        local toy = GKLib.getToy(toyName)
+        if toy then return toy end
+        local menuToys = ReplicatedStorage:FindFirstChild("MenuToys")
+        local root = GKLib.getRoot()
+        if menuToys and menuToys:FindFirstChild("SpawnToyRemoteFunction") and root then
+            pcall(function()
+                menuToys.SpawnToyRemoteFunction:InvokeServer(toyName, root.CFrame, Vector3.zero)
+            end)
+            task.wait(0.1)
+            return GKLib.getToy(toyName)
+        end
+        return nil
+    end
+
+    function GKLib.destroyToy(toyName)
+        local toy = GKLib.getToy(toyName)
+        local menuToys = ReplicatedStorage:FindFirstChild("MenuToys")
+        if toy and menuToys and menuToys:FindFirstChild("DestroyToy") then
+            pcall(function() menuToys.DestroyToy:FireServer(toy) end)
+        end
+    end
+
+    function GKLib.resetHands()
+        local blob = GKLib.getToy("CreatureBlobman")
+        pcall(function()
+            local GE = ReplicatedStorage:FindFirstChild("GrabEvents")
+            
+            if GE and GE:FindFirstChild("DestroyGrabLine") then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                        GE.DestroyGrabLine:FireServer(p.Character.HumanoidRootPart)
+                    end
+                end
+            end
+
+            if blob then
+                local scriptObj = blob:FindFirstChild("BlobmanSeatAndOwnerScript")
+                local CD = scriptObj and scriptObj:FindFirstChild("CreatureDrop")
+                
+                for _, detName in ipairs({"RightDetector", "LeftDetector"}) do
+                    local det = blob:FindFirstChild(detName)
+                    if det then
+                        for _, child in pairs(det:GetChildren()) do
+                            if child:IsA("Weld") or child.Name:match("Weld") then
+                                if CD then CD:FireServer(child) end
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
+    function GKLib.getBlobmanSeat()
+        local blob = GKLib.getToy("CreatureBlobman")
+        if not blob then return nil end
+        return blob:FindFirstChild("VehicleSeat") or blob:FindFirstChildOfClass("VehicleSeat")
+    end
+
+    function GKLib.isSittingOnBlobman()
+        local hum = GKLib.getHum()
+        local seat = GKLib.getBlobmanSeat()
+        if not hum or not seat then return false end
+        return hum.SeatPart == seat
+    end
+
+    function GKLib.ensureSitBlobman()
+        local blob = GKLib.getToy("CreatureBlobman") or GKLib.spawnToy("CreatureBlobman")
+        if not blob then return false end
+        local seat = GKLib.getBlobmanSeat()
+        if not seat then return false end
+
+        local occupant = seat.Occupant
+        if occupant and occupant ~= GKLib.getHum() then
+            local otherChar = occupant.Parent
+            local otherPlayer = Players:GetPlayerFromCharacter(otherChar)
+            local root = GKLib.getRoot()
+            local scriptObj = blob:FindFirstChild("BlobmanSeatAndOwnerScript")
+            local CG = scriptObj and scriptObj:FindFirstChild("CreatureGrab")
+            local GE = ReplicatedStorage:WaitForChild("GrabEvents", 1)
+            local R_Det = blob:FindFirstChild("RightDetector")
+
+            if otherPlayer and GKLib.IsTargetValid(otherPlayer) and root and CG and GE and R_Det then
+                local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
+                if otherRoot then
+                    pcall(function()
+                        local weld = R_Det:FindFirstChild("RightWeld") or R_Det:FindFirstChildWhichIsA("Weld")
+                        occupant.Sit = false
+                        GKLib.ApplyCFrame(otherRoot, root.CFrame + Vector3.new(0, 10, 0))
+                        GE.SetNetworkOwner:FireServer(otherRoot, root.CFrame)
+                        CG:FireServer(R_Det, otherRoot, weld)
+                    end)
+                    task.wait(0.05)
+                end
+            else
+                occupant.Sit = false
+            end
+            task.wait(0.05)
+        end
+
+        local hum = GKLib.getHum()
+        if hum and not GKLib.isSittingOnBlobman() then
+            seat:Sit(hum)
+            task.wait(0.05)
+        end
+        return GKLib.isSittingOnBlobman()
+    end
+
+    function GKLib.disableCreatureAnimations(blob)
+        pcall(function()
+            local ce = ReplicatedStorage:FindFirstChild("CreatureEvents")
+            if ce then
+                local animRemote = ce:FindFirstChild("PlayCreatureAnimation")
+                if animRemote and animRemote:IsA("RemoteEvent") then
+                    animRemote.OnClientEvent:Connect(function() return end)
+                end
+            end
+        end)
+    end
+
+    function GKLib.EnsureReadyForKick()
+        if not GKLib.isSittingOnBlobman() then
+            GKLib.ensureSitBlobman()
+            task.wait(0.1)
+        end
+        local seat = GKLib.getBlobmanSeat()
+        if not seat then return nil, nil, nil, nil end
+        local blob = seat.Parent
+        GKLib.disableCreatureAnimations(blob)
+        local blobRoot = blob:FindFirstChild("HumanoidRootPart") or blob.PrimaryPart
+        local scriptObj = blob:FindFirstChild("BlobmanSeatAndOwnerScript")
+        local CG = scriptObj and scriptObj:FindFirstChild("CreatureGrab")
+        local CD = scriptObj and scriptObj:FindFirstChild("CreatureDrop")
+        local GE = ReplicatedStorage:WaitForChild("GrabEvents")
+        return blob, blobRoot, CG, CD, GE
+    end
+
+    function GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, detector, checkRunningFunc)
+        local tChar = target and target.Character
+        local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+        if not tRoot or not blobRoot then return end
+
+        local weld = detector and (detector:FindFirstChild("RightWeld") or detector:FindFirstChild("LeftWeld") or detector:FindFirstChildWhichIsA("Weld"))
+        local bringStart = tick()
+        while tick() - bringStart < 0.15 and checkRunningFunc() do
+            if not GKLib.IsTargetValid(target) then break end
+            tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+            if not tRoot then break end
+            
+            GKLib.ApplyCFrame(blobRoot, tRoot.CFrame)
+            pcall(function()
+                if CG and detector then CG:FireServer(detector, tRoot, weld) end
+                GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+                GE.SetNetworkOwner:FireServer(tRoot, blobRoot.CFrame)
+            end)
+            RunService.Heartbeat:Wait()
+        end
+    end
+
+    function GKLib.ProcessSingleTargetKick(GE, CG, CD, detector, target, targetCF, humPlatformStand)
+        if not GKLib.IsTargetValid(target) then return end
+        local tRoot = target.Character:FindFirstChild("HumanoidRootPart")
+        local tHum = target.Character:FindFirstChild("Humanoid")
+        if not tRoot or not tHum then return end
+
+        GKLib.KeepUpright(tRoot, targetCF)
+        pcall(function()
+            local weld = detector and (detector:FindFirstChild("RightWeld") or detector:FindFirstChild("LeftWeld") or detector:FindFirstChildWhichIsA("Weld"))
+            if humPlatformStand then
+                tHum.PlatformStand, tHum.Sit = true, true
+            end
+            GE.SetNetworkOwner:FireServer(tRoot, targetCF)
+            if detector and weld then CD:FireServer(weld) end
+            GE.DestroyGrabLine:FireServer(tRoot)
+            if CG and detector then CG:FireServer(detector, tRoot, weld) end
+            GE.CreateGrabLine:FireServer(tRoot, Vector3.zero, tRoot.Position, false)
+        end)
+    end
+
+    -- ==========================================
+    -- 2. UI 選單與目標分配器
+    -- ==========================================
+    local selectedTargetPlayer = nil
+    local selectedLeftTarget = nil
+    local selectedRightTarget = nil
+    local selectedKickMode = "67踢"
+    local autoSitEnabled = false
+    local triggerActiveMode = nil
+
+    local function getPlayerListFormatted()
+        local list = {}
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                table.insert(list, plr.DisplayName .. " (" .. plr.Name .. ")")
+            end
+        end
+        return list
+    end
+
+    local function getPlayerFromSelection(selection)
+        if not selection or selection == "" then return nil end
+        local username = selection:match("%((.-)%)")
+        return username and Players:FindFirstChild(username) or Players:FindFirstChild(selection)
+    end
+
+    local function restartCurrentKickMode()
+        if autoSitEnabled and triggerActiveMode then
+            triggerActiveMode(true)
+        end
+    end
+
+    local _, KickTab = pcall(function()
+        return gk_MainWindow:MakeTab({Name = "巨人踢專區 🦶", Icon = "rbxassetid://7733916988", PremiumOnly = false})
+    end)
+
+    KickTab:AddSection({Name = "--- [ 選擇打擊目標與模式 ] ---"})
+    
+    local gk_PlayerDropdown = KickTab:AddDropdown({
+        Name = "選擇主打擊目標", Default = "", Options = getPlayerListFormatted(),
+        Callback = function(val) 
+            selectedTargetPlayer = getPlayerFromSelection(val)
+            restartCurrentKickMode()
+        end
+    })
+
+    local gk_LeftDropdown = KickTab:AddDropdown({
+        Name = "【雙踢】左手抓取目標", Default = "", Options = getPlayerListFormatted(),
+        Callback = function(val) 
+            selectedLeftTarget = getPlayerFromSelection(val)
+            restartCurrentKickMode()
+        end
+    })
+
+    local gk_RightDropdown = KickTab:AddDropdown({
+        Name = "【雙踢】右手抓取目標", Default = "", Options = getPlayerListFormatted(),
+        Callback = function(val) 
+            selectedRightTarget = getPlayerFromSelection(val)
+            restartCurrentKickMode()
+        end
+    })
+
+    KickTab:AddButton({
+        Name = "🔄 刷新所有玩家列表",
+        Callback = function()
+            local list = getPlayerListFormatted()
+            if gk_PlayerDropdown and gk_PlayerDropdown.Refresh then gk_PlayerDropdown:Refresh(list, true) end
+            if gk_LeftDropdown and gk_LeftDropdown.Refresh then gk_LeftDropdown:Refresh(list, true) end
+            if gk_RightDropdown and gk_RightDropdown.Refresh then gk_RightDropdown:Refresh(list, true) end
+        end
+    })
+
+    KickTab:AddDropdown({
+        Name = "選擇自動執行模式", Default = "67踢", Options = {"巨人踢 v1", "67踢", "上下踢", "上下踢（進階版）", "斜踢", "甩尾踢", "360度踢", "背甩踢", "雙踢模式"},
+        Callback = function(val) 
+            selectedKickMode = val 
+            restartCurrentKickMode()
+        end
+    })
+
+    KickTab:AddSection({Name = "--- [ 巨人自動化與飛行 ] ---"})
+    local autoSpawnEnabled, autoSpawnThread = false, nil
+    KickTab:AddToggle({
+        Name = "🤖 自動維持召喚巨人 (Auto Spawn)", Default = false,
+        Callback = function(state)
+            autoSpawnEnabled = state
+            if autoSpawnThread then task.cancel(autoSpawnThread) autoSpawnThread = nil end
+            if state then
+                autoSpawnThread = task.spawn(function()
+                    while autoSpawnEnabled do
+                        if not GKLib.getToy("CreatureBlobman") then GKLib.spawnToy("CreatureBlobman") end
+                        task.wait(0.5)
+                    end
+                end)
+            end
+        end
+    })
+
+    local autoSitThread = nil
+    KickTab:AddToggle({
+        Name = "💺 自動保持坐上巨人並啟動踢人 (Auto Sit)", Default = false,
+        Callback = function(state)
+            autoSitEnabled = state
+            if autoSitThread then task.cancel(autoSitThread) autoSitThread = nil end
+            if state then
+                autoSitThread = task.spawn(function()
+                    while autoSitEnabled do
+                        if not GKLib.isSittingOnBlobman() then
+                            GKLib.ensureSitBlobman()
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end)
+                restartCurrentKickMode()
+            else
+                if triggerActiveMode then triggerActiveMode(false) end
+                GKLib.resetHands()
+            end
+        end
+    })
+
+    -- ✈️ 巨人飛行控制與設定 (支援準星 3D 向量前進)
+    local flightSpeed = 60
+    KickTab:AddSlider({Name = "✈️ 飛行速度", Min = 10, Max = 200, Default = 60, Increment = 5, ValueName = "studs/s", Callback = function(v) flightSpeed = v end})
+
+    local mobileFlyUpState = false
+    local mobileFlyDownState = false
+
+    KickTab:AddToggle({
+        Name = "🚀 [手機專用] 按住飛行：上昇", Default = false,
+        Callback = function(v) mobileFlyUpState = v end
+    })
+
+    KickTab:AddToggle({
+        Name = "🔻 [手機專用] 按住飛行：下降", Default = false,
+        Callback = function(v) mobileFlyDownState = v end
+    })
+
+    local giantFlightEnabled, giantFlightThread = false, nil
+    local function toggleGiantFlight(on)
+        if giantFlightThread then task.cancel(giantFlightThread) giantFlightThread = nil end
+        giantFlightEnabled = on
+        if not on then return end
+
+        giantFlightThread = task.spawn(function()
+            while giantFlightEnabled do
+                local dt = RunService.Heartbeat:Wait()
+                if GKLib.isSittingOnBlobman() then
+                    local blob, blobRoot = GKLib.EnsureReadyForKick()
+                    local camera = Workspace.CurrentCamera
+                    if blobRoot and camera then
+                        local camCF = camera.CFrame
+                        local lookVec = camCF.LookVector
+                        local rightVec = camCF.RightVector
+                        
+                        local moveDir = Vector3.zero
+
+                        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + lookVec end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - lookVec end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - rightVec end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + rightVec end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+
+                        local hum = GKLib.getHum()
+                        if hum and hum.MoveDirection.Magnitude > 0 then
+                            local charRoot = GKLib.getRoot()
+                            if charRoot then
+                                local relMove = charRoot.CFrame:VectorToObjectSpace(hum.MoveDirection)
+                                moveDir = moveDir + (lookVec * (-relMove.Z)) + (rightVec * relMove.X)
+                            end
+                        end
+
+                        if mobileFlyUpState then moveDir = moveDir + Vector3.new(0, 1, 0) end
+                        if mobileFlyDownState then moveDir = moveDir - Vector3.new(0, 1, 0) end
+
+                        local currentPos = blobRoot.Position
+                        if moveDir.Magnitude > 0 then
+                            currentPos = currentPos + (moveDir.Unit * flightSpeed * dt)
+                        end
+
+                        GKLib.ApplyCFrame(blobRoot, CFrame.new(currentPos, currentPos + lookVec))
+                        GKLib.SetNetworkOwner(blobRoot)
+                    end
+                end
+            end
+        end)
+    end
+
+    KickTab:AddToggle({
+        Name = "✈️ 開啟巨人飛行 (朝準星方向移動)", Default = false,
+        Callback = function(on) toggleGiantFlight(on) end
+    })
+
+    KickTab:AddButton({
+        Name = "🧹 清理/銷毀 Blobman 載具 (含重製雙手與事件發送)", 
+        Callback = function() 
+            GKLib.resetHands()
+            GKLib.destroyToy("CreatureBlobman") 
+        end
+    })
+
+    -- ==========================================
+    -- 3. 防踢功能
+    -- ==========================================
+    local sprayAntiKickEnabled, sprayAntiKickThread = false, nil
+    local function toggleSprayCanAntiKick(on)
+        if sprayAntiKickThread then task.cancel(sprayAntiKickThread) sprayAntiKickThread = nil end
+        sprayAntiKickEnabled = on
+        if not on then return end
+
+        sprayAntiKickThread = task.spawn(function()
+            while sprayAntiKickEnabled do
+                local target = selectedTargetPlayer
+                if not GKLib.IsTargetValid(target) then
+                    task.wait(0.5)
+                else
+                    local can = GKLib.getToy("SprayCanWD") or GKLib.getToy("SprayCan") or GKLib.spawnToy("SprayCanWD")
+                    local canPart = can and (can:IsA("BasePart") and can or can:FindFirstChild("Handle") or can:FindFirstChildWhichIsA("BasePart") or can.PrimaryPart)
+                    if canPart then
+                        GKLib.SetNetworkOwner(canPart)
+                        local pitchSpeed, pitchAngleRange = 10, math.rad(40)
+                        while sprayAntiKickEnabled and GKLib.IsTargetValid(selectedTargetPlayer) and selectedTargetPlayer == target and can and can.Parent do
+                            local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+                            if not tRoot then break end
+
+                            local backPos = tRoot.Position - (tRoot.CFrame.LookVector * 2.5) + Vector3.new(0, 0.5, 0)
+                            local baseCF = CFrame.lookAt(backPos, tRoot.Position)
+                            local pitch = math.sin(tick() * pitchSpeed) * pitchAngleRange
+                            
+                            GKLib.ApplyCFrame(canPart, baseCF * CFrame.Angles(pitch, 0, 0))
+                            GKLib.SetNetworkOwner(canPart)
+                            RunService.Heartbeat:Wait()
+                        end
+                    else
+                        task.wait(0.2)
+                    end
+                end
+            end
+        end)
+    end
+
+    -- ==========================================
+    -- 4. 踢人模式 (共用模組優化與 v1 經典整合)
+    -- ==========================================
+
+    -- 巨人踢 v1 (XOCU 經典模式)
+    local kickV1Enabled, kickV1Thread = false, nil
+    local function toggleV1Kick(on)
+        if kickV1Thread then task.cancel(kickV1Thread) kickV1Thread = nil end
+        kickV1Enabled = on
+        if not on then GKLib.resetHands() return end
+
+        kickV1Thread = task.spawn(function()
+            local GE = ReplicatedStorage:WaitForChild("GrabEvents")
+            local REMOTE_DELAY = 0.002
+            local lastRemote = 0
+
+            while kickV1Enabled and autoSitEnabled do
+                local target = selectedTargetPlayer
+                if not GKLib.IsTargetValid(target) then
+                    task.wait(0.2)
+                else
+                    local blob, blobRoot, CG, CD = GKLib.EnsureReadyForKick()
+                    if not blob or not blobRoot then
+                        task.wait(0.5)
+                    else
+                        local savedPos = blobRoot.CFrame
+                        local dragging = false
+                        local grabStartTime = 0
+
+                        while kickV1Enabled and autoSitEnabled and GKLib.IsTargetValid(target) and selectedTargetPlayer == target do
+                            local seat = GKLib.getBlobmanSeat()
+                            if not seat then break end
+                            blob = seat.Parent
+                            blobRoot = blob:FindFirstChild("HumanoidRootPart") or blob.PrimaryPart
+
+                            local tChar = target.Character
+                            local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+                            local tHum = tChar and tChar:FindFirstChild("Humanoid")
+
+                            if tRoot and tHum and tHum.Health > 0 and blobRoot then
+                                tRoot.Velocity = Vector3.zero
+
+                                if not dragging then
+                                    GKLib.ApplyCFrame(blobRoot, tRoot.CFrame)
+
+                                    if tick() - lastRemote >= REMOTE_DELAY then
+                                        lastRemote = tick()
+                                        pcall(function()
+                                            tHum.PlatformStand = true
+                                            tHum.Sit = true
+                                            GE.SetNetworkOwner:FireServer(tRoot, blobRoot.CFrame)
+                                            GE.DestroyGrabLine:FireServer(tRoot)
+                                        end)
+                                    end
+
+                                    if grabStartTime == 0 then
+                                        grabStartTime = tick()
+                                    end
+
+                                    if tick() - grabStartTime > 0.35 then
+                                        dragging = true
+                                        grabStartTime = 0
+                                        GKLib.ApplyCFrame(blobRoot, savedPos)
+                                    end
+                                else
+                                    GKLib.ApplyCFrame(blobRoot, savedPos)
+                                    local lockPos = savedPos * CFrame.new(0, 23, 0)
+                                    tRoot.CFrame = lockPos
+                                    tHum.PlatformStand = true
+                                    tHum.Sit = true
+
+                                    if tick() - lastRemote >= REMOTE_DELAY then
+                                        lastRemote = tick()
+                                        pcall(function()
+                                            GE.SetNetworkOwner:FireServer(tRoot, lockPos)
+                                            GE.DestroyGrabLine:FireServer(tRoot)
+
+                                            local R_Det = blob:FindFirstChild("RightDetector")
+                                            local weld = R_Det and (R_Det:FindFirstChild("RightWeld") or R_Det:FindFirstChildWhichIsA("Weld"))
+                                            if R_Det and weld and CD and CG then
+                                                CD:FireServer(weld)
+                                                CG:FireServer(R_Det, tRoot, weld)
+                                            end
+                                        end)
+                                    end
+                                end
+                            else
+                                dragging = false
+                                grabStartTime = 0
+                            end
+
+                            RunService.Heartbeat:Wait()
+                        end
+                        if blobRoot and savedPos then
+                            GKLib.ApplyCFrame(blobRoot, savedPos)
+                        end
+                    end
+                end
+                RunService.Heartbeat:Wait()
+            end
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 67踢
+    local kick67Enabled, kick67Thread = false, nil
+    local function toggle67Kick(on)
+        if kick67Thread then task.cancel(kick67Thread) kick67Thread = nil end
+        kick67Enabled = on
+        if not on then GKLib.resetHands() return end
+
+        kick67Thread = task.spawn(function()
+            local teleportIndex, packetTimer = 0, 0
+            local SavedPos = nil
+
+            while kick67Enabled and autoSitEnabled do
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local target = selectedTargetPlayer
+                    if not GKLib.IsTargetValid(target) then
+                        SavedPos = nil
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then SavedPos = blobRoot.CFrame end
+                        local R_Det, L_Det = blob:FindFirstChild("RightDetector"), blob:FindFirstChild("LeftDetector")
+                        local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+                        if tRoot and SavedPos and (tRoot.Position - SavedPos.Position).Magnitude > 25 then
+                            GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, R_Det, function() return kick67Enabled and autoSitEnabled end)
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+
+                        if GKLib.IsTargetValid(target) and selectedTargetPlayer == target and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                            teleportIndex = (teleportIndex + 1) % 2
+                            local targetPosCF = (teleportIndex == 0) and (SavedPos * CFrame.new(5, 18, -3)) or (SavedPos * CFrame.new(-5, 18, -3))
+                            local currentDet = (teleportIndex == 0) and R_Det or L_Det
+
+                            if tick() - packetTimer > 0.005 then
+                                packetTimer = tick()
+                                GKLib.ProcessSingleTargetKick(GE, CG, CD, currentDet, target, targetPosCF, true)
+                            end
+                        elseif blobRoot and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end
+            end
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 上下踢
+    local updownEnabled, updownThread = false, nil
+    local function toggleUpDownKick(on)
+        if updownThread then task.cancel(updownThread) updownThread = nil end
+        updownEnabled = on
+        if not on then GKLib.resetHands() return end
+
+        updownThread = task.spawn(function()
+            local packetTimer, cycleTime = 0, 0.05
+            local SavedPos = nil
+
+            while updownEnabled and autoSitEnabled do
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local target = selectedTargetPlayer
+                    if not GKLib.IsTargetValid(target) then
+                        SavedPos = nil
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then SavedPos = blobRoot.CFrame end
+                        local R_Det = blob:FindFirstChild("RightDetector")
+                        local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+                        if tRoot and SavedPos and (tRoot.Position - SavedPos.Position).Magnitude > 25 then
+                            GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, R_Det, function() return updownEnabled and autoSitEnabled end)
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+
+                        if GKLib.IsTargetValid(target) and selectedTargetPlayer == target and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                            local offsetY = ((math.floor(tick() / cycleTime) % 2) == 0) and 18 or -5
+                            local lockPosCF = SavedPos * CFrame.new(0, offsetY, -5)
+
+                            if tick() - packetTimer > 0.02 then
+                                packetTimer = tick()
+                                GKLib.ProcessSingleTargetKick(GE, CG, CD, R_Det, target, lockPosCF, true)
+                            end
+                        elseif blobRoot and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end
+            end
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 上下踢（進階版）
+    local advUpEnabled, advUpThread = false, nil
+    local function toggleAdvUpKick(on)
+        if advUpThread then task.cancel(advUpThread) advUpThread = nil end
+        advUpEnabled = on
+        if not on then GKLib.resetHands() return end
+
+        advUpThread = task.spawn(function()
+            local packetTimer = 0
+            local SavedPos = nil
+
+            while advUpEnabled and autoSitEnabled do
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local target = selectedTargetPlayer
+                    if not GKLib.IsTargetValid(target) then
+                        SavedPos = nil
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then SavedPos = blobRoot.CFrame end
+                        local R_Det = blob:FindFirstChild("RightDetector")
+                        local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+                        if tRoot and SavedPos and (tRoot.Position - SavedPos.Position).Magnitude > 20 then
+                            GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, R_Det, function() return advUpEnabled and autoSitEnabled end)
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+
+                        if GKLib.IsTargetValid(target) and selectedTargetPlayer == target and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                            local lockPosCF = SavedPos * CFrame.new(0, 18, -5)
+
+                            if tick() - packetTimer > 0.02 then
+                                packetTimer = tick()
+                                GKLib.ProcessSingleTargetKick(GE, CG, CD, R_Det, target, lockPosCF, true)
+                            end
+                        else
+                            if blobRoot and SavedPos then GKLib.ApplyCFrame(blobRoot, SavedPos) end
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end
+            end
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 斜踢
+    local slantKickEnabled, slantKickThread = false, nil
+    local function toggleSlantKick(on)
+        if slantKickThread then task.cancel(slantKickThread) slantKickThread = nil end
+        slantKickEnabled = on
+        if not on then GKLib.resetHands() return end
+
+        slantKickThread = task.spawn(function()
+            local packetTimer = 0
+            local SavedPos = nil
+
+            while slantKickEnabled and autoSitEnabled do
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local target = selectedTargetPlayer
+                    if not GKLib.IsTargetValid(target) then
+                        SavedPos = nil
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then SavedPos = blobRoot.CFrame end
+                        local R_Det = blob:FindFirstChild("RightDetector")
+                        local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+                        if tRoot and SavedPos and (tRoot.Position - SavedPos.Position).Magnitude > 20 then
+                            GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, R_Det, function() return slantKickEnabled and autoSitEnabled end)
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+
+                        if GKLib.IsTargetValid(target) and selectedTargetPlayer == target and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                            local pos = (SavedPos * CFrame.new(0, 15, -4)).Position
+                            local _, yAngle, _ = SavedPos:ToOrientation()
+                            local slantCF = CFrame.new(pos) * CFrame.Angles(math.rad(35), yAngle, math.rad(20))
+
+                            if tick() - packetTimer > 0.02 then
+                                packetTimer = tick()
+                                GKLib.ProcessSingleTargetKick(GE, CG, CD, R_Det, target, slantCF, true)
+                            end
+                        else
+                            if blobRoot and SavedPos then GKLib.ApplyCFrame(blobRoot, SavedPos) end
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end
+            end
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 甩尾踢
+    local driftKickEnabled, driftKickThread = false, nil
+    local orbitRadius, orbitSpeed2, orbitAngle = 15, 2, 0
+    KickTab:AddSlider({Name = "繞圈半徑", Min = 5, Max = 30, Default = 15, Increment = 1, ValueName = "m", Callback = function(v) orbitRadius = v end})
+    KickTab:AddSlider({Name = "繞圈速度", Min = 1, Max = 100, Default = 2, Increment = 1, ValueName = "速度", Callback = function(v) orbitSpeed2 = v end})
+
+    local function toggleDriftKick(on)
+        if driftKickThread then task.cancel(driftKickThread) driftKickThread = nil end
+        driftKickEnabled = on
+        if not on then orbitAngle = 0 GKLib.resetHands() return end
+
+        driftKickThread = task.spawn(function()
+            local packetTimer = 0
+            local SavedPos = nil
+
+            while driftKickEnabled and autoSitEnabled do
+                local dt = RunService.Heartbeat:Wait()
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local target = selectedTargetPlayer
+                    if not GKLib.IsTargetValid(target) then
+                        SavedPos = nil
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then SavedPos = blobRoot.CFrame end
+                        local R_Det = blob:FindFirstChild("RightDetector")
+                        local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+                        if tRoot and SavedPos and (tRoot.Position - SavedPos.Position).Magnitude > 25 then
+                            GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, R_Det, function() return driftKickEnabled and autoSitEnabled end)
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+
+                        if GKLib.IsTargetValid(target) and selectedTargetPlayer == target and SavedPos then
+                            local lockPos = SavedPos * CFrame.new(0, 23, 0)
+                            orbitAngle = (orbitAngle + (dt * orbitSpeed2 * 0.8)) % (math.pi * 2)
+                            local offset = Vector3.new(math.cos(orbitAngle) * orbitRadius, 0, math.sin(orbitAngle) * orbitRadius)
+                            local orbitCFrame = CFrame.new(lockPos.Position + offset, lockPos.Position)
+                            
+                            GKLib.ApplyCFrame(blobRoot, orbitCFrame)
+
+                            if tick() - packetTimer > 0.02 then
+                                packetTimer = tick()
+                                GKLib.ProcessSingleTargetKick(GE, CG, CD, R_Det, target, lockPos, true)
+                            end
+                        elseif blobRoot and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+                    end
+                end
+            end
+            orbitAngle = 0
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 360度踢
+    local circle360Enabled, circle360Thread = nil, nil
+    local circle360Angle = 0
+
+    local function toggle360CircleKick(on)
+        if circle360Thread then task.cancel(circle360Thread) circle360Thread = nil end
+        circle360Enabled = on
+        if not on then circle360Angle = 0 GKLib.resetHands() return end
+
+        circle360Thread = task.spawn(function()
+            local packetTimer = 0
+            local SavedPos = nil
+
+            while circle360Enabled and autoSitEnabled do
+                local dt = RunService.Heartbeat:Wait()
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local target = selectedTargetPlayer
+                    if not GKLib.IsTargetValid(target) then
+                        SavedPos = nil
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then SavedPos = blobRoot.CFrame end
+                        local R_Det = blob:FindFirstChild("RightDetector")
+                        local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+                        if tRoot and SavedPos and (tRoot.Position - SavedPos.Position).Magnitude > 25 then
+                            GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, R_Det, function() return circle360Enabled and autoSitEnabled end)
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+
+                        if GKLib.IsTargetValid(target) and selectedTargetPlayer == target and SavedPos then
+                            circle360Angle = (circle360Angle + (dt * orbitSpeed2 * 1.2)) % (math.pi * 2)
+                            local centerPos = SavedPos.Position + Vector3.new(0, 18, 0)
+                            local offset = Vector3.new(math.cos(circle360Angle) * orbitRadius, math.sin(circle360Angle * 2) * 4, math.sin(circle360Angle) * orbitRadius)
+                            local giantCF = CFrame.new(centerPos + offset, centerPos)
+                            
+                            GKLib.ApplyCFrame(blobRoot, giantCF)
+                            local centerTargetCF = SavedPos * CFrame.new(0, 15, -2)
+
+                            if tick() - packetTimer > 0.015 then
+                                packetTimer = tick()
+                                GKLib.ProcessSingleTargetKick(GE, CG, CD, R_Det, target, centerTargetCF, true)
+                            end
+                        elseif blobRoot and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+                    end
+                end
+            end
+            circle360Angle = 0
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 背甩踢
+    local backDriftEnabled, backDriftThread = nil, nil
+    local backDriftAngle = 0
+
+    local function toggleBackDriftKick(on)
+        if backDriftThread then task.cancel(backDriftThread) backDriftThread = nil end
+        backDriftEnabled = on
+        if not on then backDriftAngle = 0 GKLib.resetHands() return end
+
+        backDriftThread = task.spawn(function()
+            local packetTimer = 0
+            local SavedPos = nil
+            local hasReachedHome = false
+
+            while backDriftEnabled and autoSitEnabled do
+                local dt = RunService.Heartbeat:Wait()
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local target = selectedTargetPlayer
+                    if not GKLib.IsTargetValid(target) then
+                        SavedPos = nil
+                        hasReachedHome = false
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then 
+                            SavedPos = blobRoot.CFrame 
+                            hasReachedHome = false
+                        end
+                        
+                        local R_Det = blob:FindFirstChild("RightDetector")
+                        local tRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+
+                        if tRoot and SavedPos and (tRoot.Position - SavedPos.Position).Magnitude > 25 then
+                            hasReachedHome = false
+                            GKLib.GrabTargetAtPos(blobRoot, target, CG, GE, R_Det, function() return backDriftEnabled and autoSitEnabled end)
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        else
+                            hasReachedHome = true
+                        end
+
+                        if GKLib.IsTargetValid(target) and selectedTargetPlayer == target and SavedPos then
+                            local centerTargetCF = SavedPos * CFrame.new(0, 15, -2)
+                            if not hasReachedHome then
+                                GKLib.ApplyCFrame(blobRoot, SavedPos)
+                            else
+                                local centerPos = SavedPos.Position + Vector3.new(0, 18, 0)
+                                backDriftAngle = (backDriftAngle + (dt * orbitSpeed2 * 1.0)) % (math.pi * 2)
+                                local offset = Vector3.new(math.cos(backDriftAngle) * orbitRadius, 0, math.sin(backDriftAngle) * orbitRadius)
+                                local giantPos = centerPos + offset
+                                local giantCF = CFrame.lookAt(giantPos, giantPos + (giantPos - centerPos))
+                                GKLib.ApplyCFrame(blobRoot, giantCF)
+                            end
+
+                            if tick() - packetTimer > 0.02 then
+                                packetTimer = tick()
+                                GKLib.ProcessSingleTargetKick(GE, CG, CD, R_Det, target, centerTargetCF, true)
+                            end
+                        elseif blobRoot and SavedPos then
+                            GKLib.ApplyCFrame(blobRoot, SavedPos)
+                        end
+                    end
+                end
+            end
+            backDriftAngle = 0
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 雙踢模式
+    local dualKickEnabled, dualKickThread = false, nil
+    local function toggleDualKick(on)
+        if dualKickThread then task.cancel(dualKickThread) dualKickThread = nil end
+        dualKickEnabled = on
+        if not on then GKLib.resetHands() return end
+
+        dualKickThread = task.spawn(function()
+            local packetTimer = 0
+            local SavedPos = nil
+            local hasFetchedBoth = false
+
+            while dualKickEnabled and autoSitEnabled do
+                local blob, blobRoot, CG, CD, GE = GKLib.EnsureReadyForKick()
+                if not blob or not blobRoot then
+                    task.wait(0.5)
+                else
+                    local leftTarget = selectedLeftTarget
+                    local rightTarget = selectedRightTarget
+
+                    if not GKLib.IsTargetValid(leftTarget) and not GKLib.IsTargetValid(rightTarget) then
+                        SavedPos = nil
+                        hasFetchedBoth = false
+                        task.wait(0.2)
+                    else
+                        if not SavedPos then 
+                            SavedPos = blobRoot.CFrame 
+                            hasFetchedBoth = false
+                        end
+                        
+                        local R_Det = blob:FindFirstChild("RightDetector")
+                        local L_Det = blob:FindFirstChild("LeftDetector")
+
+                        local leftRoot = GKLib.IsTargetValid(leftTarget) and leftTarget.Character:FindFirstChild("HumanoidRootPart")
+                        local rightRoot = GKLib.IsTargetValid(rightTarget) and rightTarget.Character:FindFirstChild("HumanoidRootPart")
+
+                        if not hasFetchedBoth or (leftRoot and (leftRoot.Position - SavedPos.Position).Magnitude > 20) or (rightRoot and (rightRoot.Position - SavedPos.Position).Magnitude > 20) then
+                            hasFetchedBoth = false
+                            if GKLib.IsTargetValid(leftTarget) then
+                                GKLib.GrabTargetAtPos(blobRoot, leftTarget, CG, GE, L_Det, function() return dualKickEnabled and autoSitEnabled end)
+                            end
+                            if GKLib.IsTargetValid(rightTarget) then
+                                GKLib.GrabTargetAtPos(blobRoot, rightTarget, CG, GE, R_Det, function() return dualKickEnabled and autoSitEnabled end)
+                            end
+                            if blobRoot and SavedPos then GKLib.ApplyCFrame(blobRoot, SavedPos) end
+                            hasFetchedBoth = true
+                            task.wait(0.05)
+                        end
+
+                        if blobRoot and SavedPos then GKLib.ApplyCFrame(blobRoot, SavedPos) end
+
+                        local leftCF = SavedPos * CFrame.new(-6, 18, -3)
+                        local rightCF = SavedPos * CFrame.new(6, 18, -3)
+
+                        if tick() - packetTimer > 0.015 then
+                            packetTimer = tick()
+                            GKLib.ProcessSingleTargetKick(GE, CG, CD, L_Det, leftTarget, leftCF, true)
+                            GKLib.ProcessSingleTargetKick(GE, CG, CD, R_Det, rightTarget, rightCF, true)
+                        end
+                        RunService.Heartbeat:Wait()
+                    end
+                end
+            end
+            GKLib.resetHands()
+        end)
+    end
+
+    -- 切換觸發器
+    triggerActiveMode = function(on)
+        toggleV1Kick(false) toggle67Kick(false) toggleUpDownKick(false) toggleAdvUpKick(false) toggleSlantKick(false) toggleDriftKick(false) toggle360CircleKick(false) toggleBackDriftKick(false) toggleDualKick(false)
+        if not on or not autoSitEnabled then 
+            GKLib.resetHands()
+            return 
+        end
+        if selectedKickMode == "巨人踢 v1" then toggleV1Kick(true)
+        elseif selectedKickMode == "67踢" then toggle67Kick(true)
+        elseif selectedKickMode == "上下踢" then toggleUpDownKick(true)
+        elseif selectedKickMode == "上下踢（進階版）" then toggleAdvUpKick(true)
+        elseif selectedKickMode == "斜踢" then toggleSlantKick(true)
+        elseif selectedKickMode == "甩尾踢" then toggleDriftKick(true)
+        elseif selectedKickMode == "360度踢" then toggle360CircleKick(true)
+        elseif selectedKickMode == "背甩踢" then toggleBackDriftKick(true)
+        elseif selectedKickMode == "雙踢模式" then toggleDualKick(true) end
+    end
+
+    -- ==========================================
+    -- 5. 高級控制與開關 UI
+    -- ==========================================
+    KickTab:AddSection({Name = "--- [ 防搶與高級控制 ] ---"})
+    KickTab:AddToggle({
+        Name = "🛡️ 刪除目標防踢 (SprayCanWD CFrame 精準定位擺頭)", Default = false,
+        Callback = function(on) toggleSprayCanAntiKick(on) end
+    })
+
+    -- ==========================================
+    -- 6. 線卡頓與防 Lag 清除區塊
+    -- ==========================================
+    KickTab:AddSection({Name = "--- [ 伺服器線卡頓與防 Lag 控制 ] ---"})
+
+    local serverLagEnabled = false
+    local serverLagThread = nil
+    local antiLagCleanupThread = nil
+    local antiLagCleanupEnabled = false
+    local lagAmount = 20
+
+    -- 清理 GrabLine 的獨立輔助函數
+    local function purgeAllGrabLines()
+        pcall(function()
+            local GE = ReplicatedStorage:FindFirstChild("GrabEvents")
+            local destroyRemote = GE and GE:FindFirstChild("DestroyGrabLine")
+            if destroyRemote then
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                        destroyRemote:FireServer(plr.Character.HumanoidRootPart)
+                    end
+                end
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    destroyRemote:FireServer(LocalPlayer.Character.HumanoidRootPart)
+                end
+            end
+        end)
+    end
+
+    KickTab:AddSlider({
+        Name = "<font color='#8B0000'>🔥 線卡頓強度 (封包數量)</font>", 
+        Min = 1, 
+        Max = 100000, 
+        Default = 20, 
+        Increment = 50, 
+        ValueName = "個封包/次", 
+        Callback = function(v) 
+            lagAmount = v 
+        end
+    })
+
+    KickTab:AddToggle({
+        Name = "<font color='#8B0000'><b>🔥 線卡頓 (伺服器負載攻擊)</b></font>", 
+        Default = false,
+        Callback = function(state)
+            serverLagEnabled = state
+            if serverLagThread then 
+                task.cancel(serverLagThread) 
+                serverLagThread = nil 
+            end
+            
+            if state then
+                serverLagThread = task.spawn(function()
+                    while serverLagEnabled do
+                        local GrabEventsRef = ReplicatedStorage:FindFirstChild("GrabEvents")
+                        local CreateGrabLineRef = GrabEventsRef and GrabEventsRef:FindFirstChild("CreateGrabLine")
+
+                        if CreateGrabLineRef then
+                            local SpawnLocation = Workspace:FindFirstChild("SpawnLocation") 
+                                or Workspace:FindFirstChild("Spawn") 
+                                or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart"))
+
+                            if SpawnLocation then
+                                for _ = 1, lagAmount do
+                                    if not serverLagEnabled then break end
+                                    local v55 = math.random(-1000000000, 1000000000)
+                                    local v56 = math.random(-1000000000, 1000000000)
+
+                                    pcall(function()
+                                        CreateGrabLineRef:FireServer(SpawnLocation, CFrame.new(v55, 0, v56))
+                                    end)
+                                end
+                            end
+                        end
+                        task.wait(0.02)
+                    end
+                end)
+            else
+                -- 🚨 關閉線卡頓瞬間立即發送刪除命令清除殘留
+                purgeAllGrabLines()
+            end
+        end
+    })
+
+    -- 🛡️ 獨立線路：防 Lag 刪除（對抗外部外掛防卡頓）
+    KickTab:AddToggle({
+        Name = "🛡️ 防 Lag 刪除 (開闢獨立線路清理 GrabLine)", 
+        Default = false,
+        Callback = function(state)
+            antiLagCleanupEnabled = state
+            if antiLagCleanupThread then
+                task.cancel(antiLagCleanupThread)
+                antiLagCleanupThread = nil
+            end
+
+            if state then
+                antiLagCleanupThread = task.spawn(function()
+                    while antiLagCleanupEnabled do
+                        -- 當線卡頓被關閉時，持續進行獨立監控與發送清除封包
+                        if not serverLagEnabled then
+                            purgeAllGrabLines()
+                        end
+                        task.wait(0.1)
+                    end
+                end)
+            else
+                purgeAllGrabLines()
+            end
+        end
+    })
+
+    -- ==========================================
+    -- 7. 包裹卡頓 (Packet Lag) 獨立區塊
+    -- ==========================================
+    KickTab:AddSection({Name = "--- [ 包裹卡頓 (Packet Lag) 控制 ] ---"})
+
+    local packetLagActive = false
+    local packetLagTask = nil
+    local packetLagSize = 1
+
+    local function getPacketSize()
+        return packetLagSize * 1000000
+    end
+
+    KickTab:AddSlider({
+        Name = "📦 Packet Size (MB)",
+        Min = 1,
+        Max = 20,
+        Default = 1,
+        Increment = 1,
+        ValueName = "MB",
+        Callback = function(v)
+            packetLagSize = v
+        end
+    })
+
+    KickTab:AddButton({
+        Name = "📦 發送包裹卡頓 (單次)",
+        Callback = function()
+            local GrabEvents = ReplicatedStorage:FindFirstChild("GrabEvents")
+            local ExtendGrabLine = GrabEvents and GrabEvents:FindFirstChild("ExtendGrabLine")
+            if not ExtendGrabLine then return end
+            local size = getPacketSize()
+            pcall(function()
+                ExtendGrabLine:FireServer(string.rep("A", size))
+            end)
+        end
+    })
+
+    KickTab:AddToggle({
+        Name = "📦 包裹卡頓 (迴圈循環)",
+        Default = false,
+        Callback = function(Value)
+            packetLagActive = Value
+            if Value then
+                packetLagTask = task.spawn(function()
+                    local GrabEvents = ReplicatedStorage:FindFirstChild("GrabEvents")
+                    local ExtendGrabLine = GrabEvents and GrabEvents:FindFirstChild("ExtendGrabLine")
+                    if not ExtendGrabLine then
+                        packetLagActive = false
+                        return
+                    end
+                    local size = getPacketSize()
+                    while packetLagActive do
+                        task.wait(0.5)
+                        pcall(function()
+                            ExtendGrabLine:FireServer(string.rep("A", size))
+                        end)
+                    end
+                end)
+            else
+                if packetLagTask then
+                    task.cancel(packetLagTask)
+                    packetLagTask = nil
+                end
+            end
+        end
+    })
+
+    KickTab:AddSection({Name = "--- [ 各模式獨立開關控制 ] ---"})
+    KickTab:AddToggle({Name = "開啟 巨人踢 v1", Default = false, Callback = function(on) if autoSitEnabled then toggleV1Kick(on) else toggleV1Kick(false) end end})
+    KickTab:AddToggle({Name = "開啟 67踢", Default = false, Callback = function(on) if autoSitEnabled then toggle67Kick(on) else toggle67Kick(false) end end})
+    KickTab:AddToggle({Name = "開啟 上下踢", Default = false, Callback = function(on) if autoSitEnabled then toggleUpDownKick(on) else toggleUpDownKick(false) end end})
+    KickTab:AddToggle({Name = "開啟 上下踢（進階版）", Default = false, Callback = function(on) if autoSitEnabled then toggleAdvUpKick(on) else toggleAdvUpKick(false) end end})
+    KickTab:AddToggle({Name = "開啟 斜踢", Default = false, Callback = function(on) if autoSitEnabled then toggleSlantKick(on) else toggleSlantKick(false) end end})
+    KickTab:AddToggle({Name = "開啟 甩尾踢", Default = false, Callback = function(on) if autoSitEnabled then toggleDriftKick(on) else toggleDriftKick(false) end end})
+    KickTab:AddToggle({Name = "開啟 360度踢", Default = false, Callback = function(on) if autoSitEnabled then toggle360CircleKick(on) else toggle360CircleKick(false) end end})
+    KickTab:AddToggle({Name = "開啟 背甩踢", Default = false, Callback = function(on) if autoSitEnabled then toggleBackDriftKick(on) else toggleBackDriftKick(false) end end})
+    KickTab:AddToggle({Name = "開啟 雙踢模式", Default = false, Callback = function(on) if autoSitEnabled then toggleDualKick(on) else toggleDualKick(false) end end})
+
+end)
+-- =========== 巨人踢 v2.2.1 結束 ===========
